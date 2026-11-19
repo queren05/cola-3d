@@ -128,7 +128,19 @@ body::before {
 .modo-prueba, .modo-taller, .quien { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
 .modo-prueba { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--line); }
 .modo-taller { background: var(--ink); color: var(--bg); }
-.quien { background: var(--surface); border: 1px solid var(--line); }
+.quien { background: var(--surface); border: 1px solid var(--line); color: inherit; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+button.quien { padding: 4px 10px 4px 4px; }
+.cuenta-menu { position: relative; }
+.cuenta-pop {
+  position: absolute; right: 0; top: calc(100% + 8px); min-width: 200px; z-index: 60; display: flex; flex-direction: column; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-up); transform-origin: top right;
+}
+.cuenta-pop button { text-align: left; padding: 10px 12px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 600; color: inherit; background: none; border: 0; cursor: pointer; }
+.cuenta-pop button:hover { background: var(--surface-2); }
+.cuenta-email { font-size: 12px; color: var(--muted); padding: 8px 12px 6px; overflow-wrap: anywhere; }
+.velo { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--ink) 35%, transparent); backdrop-filter: blur(6px); }
+.nueva-clave { width: min(380px, 100%); }
+.nueva-clave h2 { margin: 0; font: 800 24px/1.1 var(--display); letter-spacing: -0.02em; }
 
 .nav-movil { display: none; }
 @media (max-width: 760px) {

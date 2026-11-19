@@ -363,7 +363,7 @@ function Confeti() {
 
 function Cuenta() {
   const { api, setSesion, aviso } = useDatos();
-  const [modo, setModo] = useState<"entrar" | "crear">("entrar");
+  const [modo, setModo] = useState<"entrar" | "crear" | "olvido">("entrar");
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
@@ -372,6 +372,12 @@ function Cuenta() {
     e.preventDefault();
     setOcupado(true);
     try {
+      if (modo === "olvido") {
+        await api.recuperar!(email.trim());
+        aviso("Te hemos mandado un correo para cambiarla");
+        setModo("entrar");
+        return;
+      }
       if (modo === "crear") await api.registrar!(nombre.trim(), email.trim(), clave);
       else await api.entrar!(email.trim(), clave);
       const s = await api.sesion!();
@@ -387,7 +393,7 @@ function Cuenta() {
     <div className="pagina estrecha">
       <header className="cabecera-pagina">
         <span className="sobretitulo">Para pedir figuras</span>
-        <h1>{modo === "entrar" ? "Entrar" : "Crear cuenta"}</h1>
+        <h1>{modo === "entrar" ? "Entrar" : modo === "crear" ? "Crear cuenta" : "Cambiar contraseña"}</h1>
       </header>
       <form className="panel formulario" onSubmit={enviar}>
         <AnimatePresence initial={false}>
@@ -399,11 +405,16 @@ function Cuenta() {
           )}
         </AnimatePresence>
         <label className="campo"><span>Correo</span><input id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-        <label className="campo"><span>Contraseña</span><input id="c-clave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete={modo === "crear" ? "new-password" : "current-password"} minLength={6} required /></label>
-        <button className="boton primario ancho" disabled={ocupado}>{modo === "entrar" ? "Entrar" : "Crear cuenta"}</button>
+        {modo !== "olvido" && (
+          <label className="campo"><span>Contraseña</span><input id="c-clave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete={modo === "crear" ? "new-password" : "current-password"} minLength={6} required /></label>
+        )}
+        <button className="boton primario ancho" disabled={ocupado}>{modo === "entrar" ? "Entrar" : modo === "crear" ? "Crear cuenta" : "Mandarme el correo"}</button>
         <button type="button" className="boton plano" onClick={() => setModo(modo === "entrar" ? "crear" : "entrar")}>
           {modo === "entrar" ? "No tengo cuenta" : "Ya tengo cuenta"}
         </button>
+        {modo === "entrar" && (
+          <button type="button" className="boton plano" onClick={() => setModo("olvido")}>He olvidado la contraseña</button>
+        )}
       </form>
     </div>
   );

@@ -145,5 +145,9 @@ export interface Api {
   entrar?(email: string, clave: string): Promise<void>;
   registrar?(nombre: string, email: string, clave: string): Promise<void>;
   salir?(): Promise<void>;
+  recuperar?(email: string): Promise<void>;
+  nuevaClave?(clave: string): Promise<void>;
+  /** avisa cuando se entra desde el correo de «he olvidado la contraseña» */
+  alRecuperar?(cb: () => void): () => void;
   soyAdmin?(): Promise<boolean>;
 }

@@ -2,6 +2,7 @@ import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motio
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IBobina, ICola, IGente, IPedir, ITaller } from "./components/Iconos";
 import { DetallePedido } from "./components/Pedido";
+import { MenuCuenta, NuevaClave } from "./components/Sesion";
 import { Cola } from "./pages/Cola";
 import { Filamentos } from "./pages/Filamentos";
 import { Gente } from "./pages/Gente";
@@ -89,7 +90,7 @@ export default function App() {
             <div className="barra-estado">
               {api.modo === "local" && <span className="modo-prueba" title="Los pedidos se guardan solo en este navegador">Modo prueba</span>}
               {esAdmin && <span className="modo-taller">Taller</span>}
-              {cuentas && sesion && <span className="quien">{sesion.nombre}</span>}
+              {cuentas && (sesion ? <MenuCuenta ir={ir} /> : <button className="quien" onClick={() => ir("pedir")}>Entrar</button>)}
             </div>
           </div>
         </header>
@@ -116,6 +117,8 @@ export default function App() {
         </nav>
 
         <AnimatePresence>{pedido && <DetallePedido key={pedido.id} p={pedido} onCerrar={cerrar} />}</AnimatePresence>
+
+        <NuevaClave />
 
         <div className="toasts" aria-live="polite">
           <AnimatePresence>

@@ -43,6 +43,9 @@ interface Ctx {
   setYo: (n: string) => void;
   sesion: Sesion | null;
   setSesion: (s: Sesion | null) => void;
+  /** se ha entrado desde el correo para cambiar la contraseña */
+  recuperando: boolean;
+  setRecuperando: (v: boolean) => void;
   tokens: Record<string, string>;
   guardarToken: (id: string, token: string) => void;
   // taller
@@ -69,6 +72,7 @@ export function Proveedor({ children }: { children: ReactNode }) {
   const [clave, setClave] = useState<string | null>(() => ls<string | null>("cola3d-clave", null, sessionStorage));
   const [adminCuenta, setAdminCuenta] = useState(false);
   const [sesion, setSesion] = useState<Sesion | null>(null);
+  const [recuperando, setRecuperando] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [resaltado, setResaltado] = useState<string | null>(null);
   const tid = useRef(0);
@@ -92,10 +96,12 @@ export function Proveedor({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!api.cuentas || !api.sesion) return;
+    const quitar = api.alRecuperar?.(() => setRecuperando(true));
     api.sesion().then(async (s) => {
       setSesion(s);
       if (s && api.soyAdmin) setAdminCuenta(await api.soyAdmin().catch(() => false));
     });
+    return quitar;
   }, []);
 
   const aviso = useCallback((texto: string, tipo: "ok" | "error" = "ok") => {
@@ -117,6 +123,8 @@ export function Proveedor({ children }: { children: ReactNode }) {
         lsSet("cola3d-yo", n.trim() || null);
       },
       sesion,
+      recuperando,
+      setRecuperando,
       setSesion: (s) => {
         setSesion(s);
         if (s && api.soyAdmin) api.soyAdmin().then(setAdminCuenta).catch(() => {});
@@ -149,7 +157,7 @@ export function Proveedor({ children }: { children: ReactNode }) {
       resaltado,
       setResaltado,
     }),
-    [datos, cargado, error, recargar, yo, sesion, tokens, clave, adminCuenta, toasts, aviso, resaltado],
+    [datos, cargado, error, recargar, yo, sesion, tokens, clave, adminCuenta, toasts, aviso, resaltado, recuperando],
   );
   return <C.Provider value={value}>{children}</C.Provider>;
 }

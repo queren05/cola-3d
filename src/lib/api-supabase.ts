@@ -78,17 +78,45 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
           },
           async entrar(email: string, clave: string) {
             const { error } = await sb.auth.signInWithPassword({ email, password: clave });
-            if (error) throw new Error(error.message === "Invalid login credentials" ? "Correo o contraseña incorrectos" : error.message);
+            if (error) throw new Error(traducir(error.message));
           },
           async registrar(nombre: string, email: string, clave: string) {
-            const { error } = await sb.auth.signUp({ email, password: clave, options: { data: { nombre } } });
-            if (error) throw new Error(error.message);
+            const { error } = await sb.auth.signUp({ email, password: clave, options: { data: { nombre }, emailRedirectTo: volver() } });
+            if (error) throw new Error(traducir(error.message));
           },
           async salir() {
             await sb.auth.signOut();
           },
           soyAdmin: () => rpc<boolean>("soy_admin", {}),
+          async recuperar(email: string) {
+            const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: volver() });
+            if (error) throw new Error(traducir(error.message));
+          },
+          async nuevaClave(clave: string) {
+            const { error } = await sb.auth.updateUser({ password: clave });
+            if (error) throw new Error(traducir(error.message));
+          },
+          alRecuperar(cb: () => void) {
+            const { data } = sb.auth.onAuthStateChange((ev) => {
+              if (ev === "PASSWORD_RECOVERY") cb();
+            });
+            return () => data.subscription.unsubscribe();
+          },
         }
       : {}),
   };
+}
+
+/** la dirección de la web sin la parte de #/… (para los enlaces de los correos) */
+const volver = () => location.origin + location.pathname;
+
+function traducir(m: string): string {
+  if (/invalid login credentials/i.test(m)) return "Correo o contraseña incorrectos";
+  if (/already registered|already exists/i.test(m)) return "Ese correo ya tiene cuenta";
+  if (/email not confirmed/i.test(m)) return "Confirma tu correo antes de entrar";
+  if (/password.*(at least|characters)/i.test(m)) return "La contraseña necesita al menos 6 caracteres";
+  if (/same.*password|different from the old/i.test(m)) return "Pon una contraseña distinta a la anterior";
+  if (/rate limit|too many|security purposes/i.test(m)) return "Demasiados intentos, espera un poco";
+  if (/invalid.*email|unable to validate email/i.test(m)) return "El correo no es válido";
+  return m;
 }
