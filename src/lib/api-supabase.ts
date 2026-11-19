@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { AJUSTES_DEFECTO } from "./coste";
-import type { Ajustes, Api, Datos, Filamento, Pedido } from "./types";
+import type { Ajustes, Api, Datos, Filamento, Pedido, Perfil } from "./types";
 
 /** Supabase: la web solo lee las tablas; todo lo que escribe pasa por las funciones de supabase/schema.sql. */
 export function apiSupabase(url: string, key: string, cuentas: boolean, previewFn: boolean): Api {
@@ -65,7 +65,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       ? async (u) => {
           const { data, error } = await sb.functions.invoke("preview", { body: { url: u } });
           if (error || !data) return null;
-          return data as { titulo?: string; imagen?: string };
+          return data as { titulo?: string; imagen?: string; perfiles?: Perfil[] };
         }
       : undefined,
     ...(cuentas

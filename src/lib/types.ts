@@ -60,6 +60,20 @@ export interface CosteDetalle {
   lineas: LineaCoste[];
 }
 
+/** perfil de impresión de MakerWorld (gramos, tiempo y colores ya laminados) */
+export interface Perfil {
+  id: string;
+  titulo: string;
+  impresora: string;
+  modelo: string;
+  a1mini: boolean;
+  minutos: number;
+  gramos: number;
+  placas: number;
+  colores: { color: string; material: string; gramos: number }[];
+  porDefecto: boolean;
+}
+
 export interface Cambio {
   estado: Estado;
   fecha: string;
@@ -125,7 +139,7 @@ export interface Api {
   adminBorrarFilamento(clave: string, id: string): Promise<void>;
   adminAjustes(clave: string, a: Ajustes): Promise<void>;
   adminCambiarClave(clave: string, nueva: string): Promise<void>;
-  vistaPrevia?(url: string): Promise<{ titulo?: string; imagen?: string } | null>;
+  vistaPrevia?(url: string): Promise<{ titulo?: string; imagen?: string; perfiles?: Perfil[] } | null>;
   // cuentas (solo con Supabase y VITE_CUENTAS=1)
   sesion?(): Promise<Sesion | null>;
   entrar?(email: string, clave: string): Promise<void>;

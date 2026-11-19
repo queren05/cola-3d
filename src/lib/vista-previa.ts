@@ -1,11 +1,12 @@
-import type { Api } from "./types";
+import type { Api, Perfil } from "./types";
 
 export interface Vista {
   titulo?: string;
   imagen?: string;
+  perfiles?: Perfil[];
 }
 
-const CACHE = "cola3d-vistas";
+const CACHE = "cola3d-vistas2";
 function cache(): Record<string, Vista> {
   try {
     return JSON.parse(localStorage.getItem(CACHE) || "{}");
@@ -25,7 +26,8 @@ const generica = (img?: string) => !img || /og-icon|favicon|logo/i.test(img);
 /** Saca la foto y el nombre de la figura del enlace (MakerWorld, Printables, Thingiverse…). */
 export async function vistaPrevia(url: string, api: Api): Promise<Vista | null> {
   const c = cache();
-  if (c[url]) return c[url];
+  const k = url.split("#")[0];
+  if (c[k]) return c[k];
   let v: Vista | null = null;
   if (api.vistaPrevia) {
     try {
@@ -38,15 +40,15 @@ export async function vistaPrevia(url: string, api: Api): Promise<Vista | null> 
       if (r.ok) {
         const j = await r.json();
         const d = j?.data || {};
-        v = { titulo: v?.titulo || d.title, imagen: generica(d.image?.url) ? v?.imagen : d.image.url };
+        v = { ...v, titulo: v?.titulo || d.title, imagen: generica(d.image?.url) ? v?.imagen : d.image.url };
       }
     } catch {}
   }
   if (!v) return null;
-  v = { titulo: limpiarTitulo(v.titulo), imagen: generica(v.imagen) ? undefined : v.imagen };
+  v = { titulo: limpiarTitulo(v.titulo), imagen: generica(v.imagen) ? undefined : v.imagen, perfiles: v.perfiles?.length ? v.perfiles : undefined };
   if (v.titulo || v.imagen) {
     try {
-      localStorage.setItem(CACHE, JSON.stringify({ ...c, [url]: v }));
+      localStorage.setItem(CACHE, JSON.stringify({ ...c, [k]: v }));
     } catch {}
   }
   return v;

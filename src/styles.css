@@ -350,6 +350,26 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--mute
 .vista-dominio { font-size: 12px; color: var(--muted); font-weight: 600; padding: 8px; text-align: center; overflow-wrap: anywhere; }
 @media (max-width: 460px) { .vista-inner { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; } }
 
+.perfiles { overflow: hidden; }
+.perfiles-lista { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; margin: 0 -2px; scrollbar-width: thin; }
+.perfil {
+  position: relative; flex: 0 0 min(250px, 78%); scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
+  padding: 14px; border-radius: 18px; background: var(--surface); border: 1.5px solid var(--line); cursor: pointer; color: inherit; font: inherit;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.perfil:hover { border-color: color-mix(in srgb, var(--ink) 40%, var(--line)); }
+.perfil.sel { border-color: var(--hot); background: color-mix(in srgb, var(--hot) 7%, var(--surface)); }
+.perfil-titulo { font-size: 13.5px; font-weight: 650; line-height: 1.25; padding-right: 22px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.perfil-datos { display: flex; align-items: center; gap: 10px; font-size: 16px; white-space: nowrap; }
+.perfil-datos i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
+.perfil-datos b { font-weight: 750; letter-spacing: -0.02em; }
+.perfil-colores { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
+.perfil-colores > span:not(.muestra) { margin-left: 4px; }
+.perfil-imp { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+.perfil-imp.ok { background: color-mix(in srgb, var(--st-impreso, #2a9d5c) 18%, transparent); color: var(--st-impreso, #2a9d5c); }
+.perfil-imp.mal { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.perfil-marca { position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--hot); color: #fff; }
+
 .colores-elegir { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .color-opcion {
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px 10px; border-radius: 16px; cursor: pointer;

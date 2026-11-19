@@ -5,7 +5,8 @@ import { Bobina, EtiquetaColor, Muestra, Numero } from "../components/Piezas";
 import { calcularCoste } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
-import type { Linea } from "../lib/types";
+import { esA1mini, lineasDePerfil, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
+import type { Linea, Perfil } from "../lib/types";
 import { vistaPrevia, type Vista } from "../lib/vista-previa";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -32,6 +33,9 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   const [enviando, setEnviando] = useState(false);
   const [hecho, setHecho] = useState(false);
   const ultimaUrl = useRef("");
+  const [perfilId, setPerfilId] = useState<string | null>(null);
+  const filamentosRef = useRef(filamentos);
+  filamentosRef.current = filamentos;
 
   useEffect(() => setNombre((n) => n || yo), [yo]);
   // sin filamentos dados de alta: una línea libre con el precio por defecto
@@ -49,6 +53,9 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
       if (ultimaUrl.current !== url) return;
       setVista(v);
       setTitulo((t) => t || v?.titulo || "");
+      const ini = v?.perfiles?.length ? perfilInicial(v.perfiles, url) : undefined;
+      if (ini) aplicar(ini);
+      else setPerfilId(null);
       setBuscando(false);
     }, 450);
     return () => clearTimeout(t);
@@ -60,6 +67,18 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   const nombreFinal = (sesion?.nombre || nombre).trim();
   const listo = !!nombreFinal && !!url && det.gramos > 0;
   const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : det.gramos <= 0 ? "Pon los gramos" : "";
+
+  // ordena: primero los hechos para la A1 mini, luego los que también le sirven
+  const perfiles = useMemo(() => [...(vista?.perfiles || [])].sort((a, b) => Number(esA1mini(b)) - Number(esA1mini(a)) || Number(b.a1mini) - Number(a.a1mini)), [vista]);
+
+  function aplicar(p: Perfil) {
+    setPerfilId(p.id);
+    const ls = lineasDePerfil(p, filamentosRef.current);
+    setLineas(ls.map((l, i) => ({ ...l, key: l.filamento_id || `perfil-${i}`, txt: String(l.gramos).replace(".", ",") })));
+    const m = minutosA1mini(p);
+    setHoras(m >= 60 ? String(Math.floor(m / 60)) : "");
+    setMins(m % 60 ? String(m % 60) : "");
+  }
 
   function alternar(fid: string) {
     const f = filamentos.find((x) => x.id === fid);
@@ -80,7 +99,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
     try {
       if (!sesion) setYo(nombreFinal);
       const r = await api.crearPedido({
-        nombre: nombreFinal, url, titulo: titulo.trim(), imagen: vista?.imagen || "",
+        nombre: nombreFinal, url: urlConPerfil(url, perfiles.find((p) => p.id === perfilId)), titulo: titulo.trim(), imagen: vista?.imagen || "",
         lineas: lineasCalc.filter((l) => l.gramos > 0).map((l) => ({ ...l, nombre: l.nombre || "Otro color" })),
         minutos, copias, notas: notas.trim(),
       });
@@ -142,6 +161,38 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                   </label>
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {perfiles.length > 0 && (
+              <motion.fieldset className="campo perfiles" key="perfiles" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.4, ease }}>
+                <legend>Perfil de impresión</legend>
+                <div className="perfiles-lista">
+                  {perfiles.map((p, i) => {
+                    const sel = p.id === perfilId;
+                    return (
+                      <motion.button type="button" key={p.id} className={`perfil${sel ? " sel" : ""}`} ref={sel ? (el: HTMLButtonElement | null) => el && requestAnimationFrame(() => el.parentElement?.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft - 2, behavior: "smooth" })) : undefined} onClick={() => aplicar(p)} aria-pressed={sel} whileTap={{ scale: 0.97 }}
+                        initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i, duration: 0.35, ease }}>
+                        <span className="perfil-titulo">{p.titulo || "Perfil"}</span>
+                        <span className="perfil-datos num">
+                          <b>{gramos(p.gramos)}</b>
+                          <i aria-hidden="true" />
+                          <b>{duracion(minutosA1mini(p)) || "—"}</b>
+                        </span>
+                        <span className="perfil-colores">
+                          {p.colores.slice(0, 8).map((c, j) => <Muestra key={j} color={c.color} size={12} />)}
+                          {p.placas > 1 && <span>{p.placas} placas</span>}
+                        </span>
+                        <span className={`perfil-imp${esA1mini(p) ? " ok" : p.a1mini ? "" : " mal"}`}>
+                          {esA1mini(p) ? "A1 mini" : p.a1mini ? `De ${p.impresora || "otra"} · vale para A1 mini` : `Solo ${p.impresora || "otra impresora"}`}
+                        </span>
+                        {sel && <motion.span layoutId="perfil-marca" className="perfil-marca"><ICheck width={12} height={12} /></motion.span>}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </motion.fieldset>
             )}
           </AnimatePresence>
 
