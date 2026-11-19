@@ -5,7 +5,7 @@ import { Bobina, EtiquetaColor, Muestra, Numero } from "../components/Piezas";
 import { calcularCoste } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
-import { esA1mini, lineasDePerfil, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
+import { esA1mini, esMakerWorld, lineasDePerfil, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
 import type { Linea, Perfil } from "../lib/types";
 import { vistaPrevia, type Vista } from "../lib/vista-previa";
 
@@ -54,7 +54,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
       setVista(v);
       setTitulo((t) => t || v?.titulo || "");
       const ini = v?.perfiles?.length ? perfilInicial(v.perfiles, url) : undefined;
-      if (ini) aplicar(ini);
+      if (ini?.a1mini) aplicar(ini);
       else setPerfilId(null);
       setBuscando(false);
     }, 450);
@@ -65,11 +65,15 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   const minutos = Math.round(num(horas) * 60 + num(mins));
   const det = useMemo(() => calcularCoste(lineasCalc, minutos, copias, datos.filamentos, datos.ajustes), [JSON.stringify(lineasCalc), minutos, copias, datos]); // eslint-disable-line react-hooks/exhaustive-deps
   const nombreFinal = (sesion?.nombre || nombre).trim();
-  const listo = !!nombreFinal && !!url && det.gramos > 0;
-  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : det.gramos <= 0 ? "Pon los gramos" : "";
-
   // ordena: primero los hechos para la A1 mini, luego los que también le sirven
   const perfiles = useMemo(() => [...(vista?.perfiles || [])].sort((a, b) => Number(esA1mini(b)) - Number(esA1mini(a)) || Number(b.a1mini) - Number(a.a1mini)), [vista]);
+  const mw = !!url && esMakerWorld(url);
+  // con los perfiles a mano: hace falta uno que valga para la A1 mini
+  const sinPerfil = mw && perfiles.length > 0 && !perfiles.some((p) => p.a1mini);
+  const perfilMalo = perfiles.find((p) => p.id === perfilId && !p.a1mini);
+  const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && det.gramos > 0;
+  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : det.gramos <= 0 ? "Pon los gramos" : "";
+
 
   function aplicar(p: Perfil) {
     setPerfilId(p.id);
@@ -137,7 +141,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
 
           <label className="campo">
             <span>Enlace de la figura</span>
-            <input id="p-url" value={urlTxt} onChange={(e) => setUrlTxt(e.target.value)} placeholder="https://makerworld.com/es/models/…" inputMode="url" autoComplete="off" />
+            <input id="p-url" value={urlTxt} onChange={(e) => setUrlTxt(e.target.value)} placeholder="https://makerworld.com/es/models/…" inputMode="url" autoComplete="off" aria-invalid={!!url && !mw} />
+            <span className={`requisito${url && !mw ? " mal" : ""}`}>Solo modelos de MakerWorld con perfil de impresión para la A1 mini</span>
           </label>
 
           <AnimatePresence>
@@ -172,7 +177,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                   {perfiles.map((p, i) => {
                     const sel = p.id === perfilId;
                     return (
-                      <motion.button type="button" key={p.id} className={`perfil${sel ? " sel" : ""}`} ref={sel ? (el: HTMLButtonElement | null) => el && requestAnimationFrame(() => el.parentElement?.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft - 2, behavior: "smooth" })) : undefined} onClick={() => aplicar(p)} aria-pressed={sel} whileTap={{ scale: 0.97 }}
+                      <motion.button type="button" key={p.id} className={`perfil${sel ? " sel" : ""}`} ref={sel ? (el: HTMLButtonElement | null) => el && requestAnimationFrame(() => el.parentElement?.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft - 2, behavior: "smooth" })) : undefined} onClick={() => aplicar(p)} aria-pressed={sel} disabled={!p.a1mini} whileTap={{ scale: 0.97 }}
                         initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i, duration: 0.35, ease }}>
                         <span className="perfil-titulo">{p.titulo || "Perfil"}</span>
                         <span className="perfil-datos num">

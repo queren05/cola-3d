@@ -174,7 +174,7 @@ begin
     select coalesce(nullif(left(trim(raw_user_meta_data->>'nombre'), 40), ''), v_nombre) into v_nombre from auth.users where id = v_uid;
   end if;
   if v_nombre = '' then raise exception 'Falta tu nombre'; end if;
-  if v_url !~* '^https?://' then raise exception 'El enlace no es válido'; end if;
+  if v_url !~* '^https?://([a-z0-9-]+\.)*makerworld\.com(\.cn)?/' then raise exception 'Solo modelos de MakerWorld con perfil de impresión'; end if;
   v_det := public._coste(v_lineas, v_min, v_cop);
   if (v_det->>'gramos')::numeric <= 0 then raise exception 'Faltan los gramos'; end if;
   insert into public.pedidos (nombre, user_id, url, titulo, imagen, lineas, minutos, copias, notas, coste, coste_detalle, historial)

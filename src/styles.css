@@ -350,6 +350,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--mute
 .vista-dominio { font-size: 12px; color: var(--muted); font-weight: 600; padding: 8px; text-align: center; overflow-wrap: anywhere; }
 @media (max-width: 460px) { .vista-inner { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; } }
 
+.requisito { font-size: 12.5px; color: var(--muted); font-weight: 550; }
+.requisito.mal { color: var(--danger); }
+.campo input[aria-invalid="true"] { border-color: var(--danger); }
+.perfil:disabled { opacity: 0.5; cursor: not-allowed; }
 .perfiles { overflow: hidden; }
 .perfiles-lista { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; margin: 0 -2px; scrollbar-width: thin; }
 .perfil {

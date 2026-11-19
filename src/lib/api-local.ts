@@ -1,3 +1,4 @@
+import { esMakerWorld } from "./perfiles";
 import { AJUSTES_DEFECTO, calcularCoste } from "./coste";
 import type { Ajustes, Api, CambiosPedido, Datos, Filamento, Linea, NuevoPedido, Pedido } from "./types";
 
@@ -83,7 +84,7 @@ export function apiLocal(): Api {
       const d = leer();
       const nombre = p.nombre.trim().slice(0, 40);
       if (!nombre) throw new Error("Falta tu nombre");
-      if (!/^https?:\/\//i.test(p.url)) throw new Error("El enlace no es válido");
+      if (!esMakerWorld(p.url)) throw new Error("Solo modelos de MakerWorld con perfil de impresión");
       const lineas = limpiarLineas(p.lineas);
       const copias = Math.min(50, Math.max(1, Math.round(p.copias || 1)));
       const minutos = Math.min(10000, Math.max(0, Math.round(p.minutos || 0)));

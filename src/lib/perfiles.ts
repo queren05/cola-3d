@@ -9,6 +9,8 @@ export function minutosA1mini(p: Perfil): number {
   const f = m === "N1" ? 1 : m === "N2S" || m === "N9" ? 1.05 : /^(BL-P|C1|N6|N7|O1)/.test(m) ? 1.3 : 1.15;
   return Math.round(p.minutos * f);
 }
+/** solo se admiten modelos de MakerWorld (traen el perfil de impresión ya preparado) */
+export const esMakerWorld = (url: string) => /^https?:\/\/([a-z0-9-]+\.)*makerworld\.com(\.cn)?\//i.test(url);
 export const esA1mini = (p: Perfil) => p.modelo === "N1";
 
 /** el perfil del enlace (#profileId-…), el hecho para la A1 mini, el principal o el primero */
