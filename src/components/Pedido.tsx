@@ -65,7 +65,10 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
           <span>{hace(p.creado)}</span>
         </div>
         <div className="tarjeta-pie">
-          <Chip estado={p.estado} />
+          <span className="chips">
+            <Chip estado={p.estado} />
+            {p.estado === "pendiente" && (p.pagado ? <span className="pagado"><ICheck width={12} height={12} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
+          </span>
           <span className="colores">
             {p.lineas.slice(0, 5).map((l, i) => (
               <Muestra key={i} color={l.color} size={12} />
@@ -145,6 +148,8 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                 {p.estado !== "cancelado" && (p.pagado ? <span className="pagado"><ICheck width={14} height={14} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
               </div>
             </div>
+
+            {!esAdmin && !p.pagado && p.estado !== "cancelado" && <Pago p={p} bizum={datos.ajustes.bizum} />}
 
             <a className="boton primario ancho" href={p.url} target="_blank" rel="noopener noreferrer">
               <IEnlace width={18} height={18} /> Abrir en {dominio(p.url)}
@@ -229,7 +234,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                 {det?.luz > 0 && (
                   <div className="desglose-fila">
                     <IReloj width={15} height={15} />
-                    <span className="d-nombre">Luz</span>
+                    <span className="d-nombre">Luz y desgaste</span>
                     <span className="num d-calc">{duracion(p.minutos * p.copias)}</span>
                     <span className="num">{eur(det.luz)}</span>
                   </div>
@@ -315,5 +320,36 @@ function AjustarGramos({ p, onGuardar, ocupado, filamentos }: { p: Pedido; onGua
         Guardar y recalcular
       </button>
     </div>
+  );
+}
+
+/** cómo pagar: Bizum o en mano; se imprime al recibirlo */
+function Pago({ p, bizum }: { p: Pedido; bizum: string }) {
+  const { aviso } = useDatos();
+  return (
+    <motion.div className="pago" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, ease }}>
+      <div className="pago-arriba">
+        <span className="etiqueta">Por pagar</span>
+        <strong className="num">{eur(p.coste)}</strong>
+      </div>
+      <p>
+        Por Bizum{bizum ? <> al <b className="num">{bizum}</b></> : ""} o en mano. {p.estado === "pendiente" ? "Se imprime cuando llegue el pago." : ""}
+      </p>
+      {bizum && (
+        <button
+          className="boton"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(bizum.replace(/\s/g, ""));
+              aviso("Número copiado");
+            } catch {
+              aviso(bizum);
+            }
+          }}
+        >
+          Copiar número
+        </button>
+      )}
+    </motion.div>
   );
 }

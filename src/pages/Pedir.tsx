@@ -315,7 +315,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                 {det.luz > 0 && (
                   <motion.div key="luz" className="r-fila" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
                     <span className="muestra" style={{ width: 10, height: 10, background: "var(--st-imprimiendo)" }} />
-                    <span>Luz · {duracion(minutos * copias)}</span>
+                    <span>Luz y desgaste · {duracion(minutos * copias)}</span>
                     <span className="num">{eur(det.luz)}</span>
                   </motion.div>
                 )}

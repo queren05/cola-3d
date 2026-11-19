@@ -8,11 +8,13 @@ create extension if not exists pgcrypto;
 -- ---------- tablas ----------
 create table if not exists public.ajustes (
   id int primary key default 1 check (id = 1),
-  precio_defecto numeric not null default 16,   -- € por rollo cuando el filamento no tiene precio propio
+  precio_defecto numeric not null default 17.99, -- € por rollo cuando el filamento no tiene precio propio
   peso_defecto int not null default 1000,       -- gramos por rollo
-  luz_hora numeric not null default 0.02,       -- € de luz por hora de impresión
-  merma_pct numeric not null default 10         -- % extra por purga cuando hay varios colores
+  luz_hora numeric not null default 0.10,       -- € de luz y desgaste por hora de impresión
+  merma_pct numeric not null default 10,        -- % extra por purga cuando hay varios colores
+  bizum text not null default ''                 -- teléfono para pagar por Bizum
 );
+alter table public.ajustes add column if not exists bizum text not null default '';
 insert into public.ajustes (id) values (1) on conflict do nothing;
 
 create table if not exists public.secreto (
@@ -298,7 +300,8 @@ begin
     precio_defecto = greatest(0, coalesce((a->>'precio_defecto')::numeric, precio_defecto)),
     peso_defecto = greatest(1, coalesce((a->>'peso_defecto')::int, peso_defecto)),
     luz_hora = greatest(0, coalesce((a->>'luz_hora')::numeric, luz_hora)),
-    merma_pct = greatest(0, coalesce((a->>'merma_pct')::numeric, merma_pct))
+    merma_pct = greatest(0, coalesce((a->>'merma_pct')::numeric, merma_pct)),
+    bizum = left(trim(coalesce(a->>'bizum', bizum)), 30)
   where id = 1;
 end $$;
 

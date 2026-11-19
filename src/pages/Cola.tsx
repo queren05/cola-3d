@@ -15,10 +15,11 @@ const FILTROS: { id: Filtro; label: string }[] = [
   { id: "todos", label: "Todos" },
 ];
 
-/** orden de la cola: lo que se imprime primero, luego pendientes por fecha de llegada */
+/** orden de la cola: lo que se imprime, luego pendientes */
 export function ordenCola(ps: Pedido[]) {
   const imp = ps.filter((p) => p.estado === "imprimiendo").sort((a, b) => a.creado.localeCompare(b.creado));
-  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => a.creado.localeCompare(b.creado));
+  // pendientes: primero los ya pagados (listos para imprimir), luego por fecha de llegada
+  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => Number(b.pagado) - Number(a.pagado) || a.creado.localeCompare(b.creado));
   return [...imp, ...pen];
 }
 

@@ -25,4 +25,4 @@ export function calcularCoste(lineas: Linea[], minutos: number, copias: number, 
   return { filamento: r2(fil), merma: r2(merma), merma_pct: mermaPct, luz: r2(luz), gramos: gtot, total: r2(fil + merma + luz), lineas: out };
 }
 
-export const AJUSTES_DEFECTO: Ajustes = { precio_defecto: 16, peso_defecto: 1000, luz_hora: 0.02, merma_pct: 10 };
+export const AJUSTES_DEFECTO: Ajustes = { precio_defecto: 17.99, peso_defecto: 1000, luz_hora: 0.1, merma_pct: 10, bizum: "" };

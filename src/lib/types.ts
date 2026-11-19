@@ -31,6 +31,8 @@ export interface Ajustes {
   luz_hora: number;
   /** % de filamento extra que se pierde purgando cuando hay varios colores */
   merma_pct: number;
+  /** teléfono para pagar por Bizum */
+  bizum: string;
 }
 
 export interface Linea {
