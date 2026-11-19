@@ -399,6 +399,17 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--mute
 .color-nombre { font-size: 13px; font-weight: 650; text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
 .color-sub { font-size: 11px; color: var(--muted); }
 .lineas { display: flex; flex-direction: column; gap: 8px; }
+.linea-caja { display: flex; flex-direction: column; }
+.aviso-color { overflow: hidden; }
+.aviso-in { margin-top: 8px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); border: 1.5px solid color-mix(in srgb, var(--danger) 35%, transparent); display: flex; flex-direction: column; gap: 10px; }
+.aviso-in strong { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--danger); }
+.aviso-opciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.alt { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.alt small { color: var(--muted); font-weight: 500; }
+.alt:hover { border-color: var(--ink); }
+.alt.taller { border-style: dashed; }
+.cambio-color { overflow: hidden; display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); padding: 6px 4px 0; }
+.cambio-color button { background: none; border: 0; padding: 0; color: var(--hot); font: inherit; font-weight: 700; cursor: pointer; }
 .linea { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 8px; align-items: center; }
 .etq-color { display: inline-flex; align-items: center; height: 46px; padding: 0 16px; border-radius: 14px; font-weight: 700; font-size: 14px; box-shadow: inset 0 0 0 1px var(--swatch-ring); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .linea-libre { display: flex; gap: 8px; min-width: 0; }

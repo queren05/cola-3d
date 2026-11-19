@@ -5,7 +5,7 @@ import { Bobina, EtiquetaColor, Muestra, Numero } from "../components/Piezas";
 import { calcularCoste } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
-import { esA1mini, esMakerWorld, lineasDePerfil, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
+import { alternativas, esA1mini, esMakerWorld, lineasDePerfil, tieneMaterial, type Falta, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
 import type { Linea, Perfil } from "../lib/types";
 import { vistaPrevia, type Vista } from "../lib/vista-previa";
 
@@ -15,6 +15,28 @@ const POCO = 50; // gramos: por debajo se considera agotado
 interface LineaForm extends Linea {
   key: string;
   txt: string;
+  /** color o material del modelo que no hay en el taller */
+  falta?: Falta;
+  /** a qué se ha cambiado, o que lo elija el taller */
+  cambio?: string;
+}
+
+/** «#ff0000» → nombre aproximado para la nota */
+function nombreColor(hex: string): string {
+  const h = hex.replace("#", "");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) || 0);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 510, d = max - min;
+  if (d < 25) return l > 0.85 ? "blanco" : l < 0.15 ? "negro" : "gris";
+  let hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  hue = (hue * 60 + 360) % 360;
+  if (hue < 15 || hue >= 340) return l > 0.7 ? "rosa" : "rojo";
+  if (hue < 40) return l < 0.35 ? "marrón" : "naranja";
+  if (hue < 65) return "amarillo";
+  if (hue < 165) return "verde";
+  if (hue < 200) return "turquesa";
+  if (hue < 255) return "azul";
+  if (hue < 290) return "morado";
+  return "rosa";
 }
 
 export function Pedir({ ir }: { ir: (r: string) => void }) {
@@ -61,7 +83,10 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
     return () => clearTimeout(t);
   }, [url, api]);
 
-  const lineasCalc: Linea[] = lineas.map(({ key, txt, ...l }) => ({ ...l, gramos: num(txt) }));
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const lineasCalc: Linea[] = lineas.map(({ key, txt, falta, cambio, ...l }) => ({ ...l, gramos: num(txt) }));
+  // colores que no hay en el taller y aún no tienen solución
+  const sinResolver = filamentos.length > 0 ? lineas.filter((l) => !l.filamento_id && !l.cambio && num(l.txt) > 0) : [];
   const minutos = Math.round(num(horas) * 60 + num(mins));
   const det = useMemo(() => calcularCoste(lineasCalc, minutos, copias, datos.filamentos, datos.ajustes), [JSON.stringify(lineasCalc), minutos, copias, datos]); // eslint-disable-line react-hooks/exhaustive-deps
   const nombreFinal = (sesion?.nombre || nombre).trim();
@@ -71,8 +96,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   // con los perfiles a mano: hace falta uno que valga para la A1 mini
   const sinPerfil = mw && perfiles.length > 0 && !perfiles.some((p) => p.a1mini);
   const perfilMalo = perfiles.find((p) => p.id === perfilId && !p.a1mini);
-  const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && det.gramos > 0;
-  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : det.gramos <= 0 ? "Pon los gramos" : "";
+  const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && det.gramos > 0 && sinResolver.length === 0;
+  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
 
 
   function aplicar(p: Perfil) {
@@ -92,6 +117,18 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
       return sin.some((l) => l.filamento_id === fid) ? sin.filter((l) => l.filamento_id !== fid) : [...sin, { key: fid, filamento_id: fid, nombre: f.nombre, color: f.color, gramos: 0, txt: "" }];
     });
   }
+  // colores que no hay: cambiarlos por uno del taller o dejar que lo elija el taller (va a las notas)
+  const descr = (l: LineaForm) => (l.falta ? `${l.falta.material} ${nombreColor(l.falta.color)}` : `${l.nombre ? l.nombre + " " : ""}${nombreColor(l.color)}`.trim());
+  function cambiarPor(l: LineaForm, f: { id: string; nombre: string; color: string; material: string }) {
+    setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, filamento_id: f.id, nombre: f.nombre, color: f.color, falta: x.falta || { color: x.color, material: "" }, cambio: `Cambio ${descr(x)} por ${f.nombre} (${f.material})` } : x)));
+  }
+  function queElija(l: LineaForm) {
+    setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, cambio: `${descr(x)}: que lo elija el taller` } : x)));
+  }
+  function deshacer(l: LineaForm) {
+    setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, filamento_id: null, nombre: x.falta?.material || x.nombre, color: x.falta?.color || x.color, cambio: undefined } : x)));
+  }
+
   function otroColor() {
     setLineas((ls) => [...ls, { key: "otro-" + Date.now(), filamento_id: null, nombre: "", color: "#9aa3ad", gramos: 0, txt: "" }]);
   }
@@ -105,7 +142,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
       const r = await api.crearPedido({
         nombre: nombreFinal, url: urlConPerfil(url, perfiles.find((p) => p.id === perfilId)), titulo: titulo.trim(), imagen: vista?.imagen || "",
         lineas: lineasCalc.filter((l) => l.gramos > 0).map((l) => ({ ...l, nombre: l.nombre || "Otro color" })),
-        minutos, copias, notas: notas.trim(),
+        minutos, copias, notas: [notas.trim(), ...lineas.filter((l) => l.cambio && num(l.txt) > 0).map((l) => l.cambio)].filter(Boolean).join("\n"),
       });
       guardarToken(r.id, r.token);
       setHecho(true);
@@ -238,7 +275,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
             <div className="lineas">
               <AnimatePresence initial={false}>
                 {lineas.map((l) => (
-                  <motion.div key={l.key} className="linea" layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.3, ease }}>
+                  <motion.div key={l.key} className="linea-caja" layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.3, ease }}>
+                  <div className="linea">
                     {l.filamento_id ? (
                       <EtiquetaColor nombre={l.nombre} color={l.color} />
                     ) : (
@@ -256,6 +294,38 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                         <ICerrar width={16} height={16} />
                       </button>
                     )}
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {filamentos.length > 0 && !l.filamento_id && !l.cambio && num(l.txt) > 0 && (
+                      <motion.div key="aviso" className="aviso-color" role="alert" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease }}>
+                        <div className="aviso-in">
+                          <strong>
+                            <Muestra color={l.falta?.color || l.color} size={12} />
+                            {l.falta
+                              ? tieneMaterial(l.falta.material, filamentos) ? `No tengo ${l.falta.material} ${nombreColor(l.falta.color)}` : `No tengo ${l.falta.material}`
+                              : "Ese color no lo tengo"}
+                          </strong>
+                          <div className="aviso-opciones">
+                            {alternativas(l.falta || { color: l.color, material: "" }, filamentos).map((f) => (
+                              <motion.button type="button" key={f.id} className="alt" whileTap={{ scale: 0.95 }} onClick={() => cambiarPor(l, f)}>
+                                <Muestra color={f.color} size={14} />
+                                {f.nombre} <small>{f.material}</small>
+                              </motion.button>
+                            ))}
+                            <motion.button type="button" className="alt taller" whileTap={{ scale: 0.95 }} onClick={() => queElija(l)}>
+                              Que lo elija el taller
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                    {l.cambio && (
+                      <motion.div key="cambio" className="cambio-color" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                        <span>{l.cambio}</span>
+                        <button type="button" onClick={() => deshacer(l)}>Deshacer</button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   </motion.div>
                 ))}
               </AnimatePresence>

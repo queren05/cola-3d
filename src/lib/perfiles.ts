@@ -37,28 +37,49 @@ function distancia(a: string, b: string): number {
   return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2);
 }
 
-/** reparte los gramos del perfil entre los rollos que tienes (el color más parecido) */
-export function lineasDePerfil(p: Perfil, filamentos: Filamento[]): (Linea & { gramos: number })[] {
-  const out: Linea[] = [];
+export interface Falta {
+  color: string;
+  material: string;
+}
+const mismoMaterial = (a: string, b: string) => a.trim().toUpperCase() === b.trim().toUpperCase();
+const disponible = (f: Filamento) => f.activo && f.stock_g >= 50;
+
+/**
+ * reparte los gramos del perfil entre los rollos que tienes: mismo material y color parecido.
+ * Si no hay ninguno así, la línea lleva «falta» para avisar y que elijan otro.
+ */
+export function lineasDePerfil(p: Perfil, filamentos: Filamento[]): (Linea & { falta?: Falta })[] {
+  const out: (Linea & { falta?: Falta })[] = [];
   for (const c of p.colores) {
     if (c.gramos <= 0) continue;
     let mejor: Filamento | undefined;
     let dmin = Infinity;
     for (const f of filamentos) {
-      if (!f.activo || f.stock_g < 50) continue;
-      const d = distancia(c.color, f.color) + (f.material.toUpperCase() === c.material.toUpperCase() ? 0 : 60);
+      if (!disponible(f) || !mismoMaterial(f.material, c.material)) continue;
+      const d = distancia(c.color, f.color);
       if (d < dmin) {
         dmin = d;
         mejor = f;
       }
     }
-    if (mejor && dmin < 260) {
+    if (mejor && dmin < 150) {
       const ya = out.find((l) => l.filamento_id === mejor!.id);
       if (ya) ya.gramos += c.gramos;
       else out.push({ filamento_id: mejor.id, nombre: mejor.nombre, color: mejor.color, gramos: c.gramos });
     } else {
-      out.push({ filamento_id: null, nombre: c.material, color: c.color, gramos: c.gramos });
+      out.push({ filamento_id: null, nombre: c.material, color: c.color, gramos: c.gramos, falta: { color: c.color, material: c.material } });
     }
   }
   return out.map((l) => ({ ...l, gramos: Math.round(l.gramos * 10) / 10 }));
 }
+
+/** rollos que puedes ofrecer en lugar de uno que no tienes: primero el mismo material, luego el color más parecido */
+export function alternativas(f: Falta, filamentos: Filamento[], n = 4): Filamento[] {
+  return filamentos
+    .filter(disponible)
+    .map((x) => ({ x, d: distancia(f.color, x.color) + (f.material && !mismoMaterial(x.material, f.material) ? 400 : 0) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, n)
+    .map((o) => o.x);
+}
+export const tieneMaterial = (material: string, filamentos: Filamento[]) => filamentos.some((f) => disponible(f) && mismoMaterial(f.material, material));
