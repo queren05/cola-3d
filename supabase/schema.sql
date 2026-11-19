@@ -86,7 +86,7 @@ grant select on public.ajustes, public.filamentos, public.pedidos to anon, authe
 
 -- ---------- utilidades internas ----------
 create or replace function public._lineas(p jsonb) returns jsonb
-language sql immutable set search_path = public as $$
+language sql immutable set search_path = public, extensions as $$
   select coalesce(jsonb_agg(jsonb_build_object(
     'filamento_id', nullif(e->>'filamento_id', ''),
     'nombre', left(coalesce(e->>'nombre', ''), 40),
@@ -98,7 +98,7 @@ $$;
 
 -- mismo cálculo que src/lib/coste.ts
 create or replace function public._coste(p_lineas jsonb, p_minutos int, p_copias int) returns jsonb
-language plpgsql stable security definer set search_path = public as $$
+language plpgsql stable security definer set search_path = public, extensions as $$
 declare
   a public.ajustes;
   l jsonb;
@@ -134,7 +134,7 @@ end $$;
 
 -- resta (signo -1) o devuelve (signo 1) al stock lo que gasta un pedido, purga incluida
 create or replace function public._stock(p_lineas jsonb, p_copias int, p_merma_pct numeric, p_signo int) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare l jsonb; factor numeric := p_signo * (1 + coalesce(p_merma_pct, 0) / 100);
 begin
   for l in select * from jsonb_array_elements(coalesce(p_lineas, '[]'::jsonb)) loop
@@ -146,13 +146,13 @@ begin
 end $$;
 
 create or replace function public._es_admin(p_clave text) returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select exists (select 1 from public.secreto where id = 1 and clave_hash = crypt(coalesce(p_clave, ''), clave_hash))
       or exists (select 1 from public.admins where user_id = auth.uid());
 $$;
 
 create or replace function public._exigir_admin(p_clave text) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public._es_admin(p_clave) then
     perform pg_sleep(1);
@@ -162,7 +162,7 @@ end $$;
 
 -- ---------- funciones públicas ----------
 create or replace function public.crear_pedido(p jsonb) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_uid uuid := auth.uid();
   v_nombre text := left(trim(coalesce(p->>'nombre', '')), 40);
@@ -188,7 +188,7 @@ begin
 end $$;
 
 create or replace function public.cancelar_pedido(p_id uuid, p_token text) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   update public.pedidos set estado = 'cancelado', actualizado = now(),
     historial = historial || jsonb_build_object('estado', 'cancelado', 'fecha', now())
@@ -199,7 +199,7 @@ begin
 end $$;
 
 create or replace function public.comprobar_clave(p_clave text) returns boolean
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   if public._es_admin(p_clave) then return true; end if;
   perform pg_sleep(1);
@@ -207,12 +207,12 @@ begin
 end $$;
 
 create or replace function public.soy_admin() returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select exists (select 1 from public.admins where user_id = auth.uid());
 $$;
 
 create or replace function public.admin_pedido(p_clave text, p_id uuid, p jsonb) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   r public.pedidos;
   cambia boolean := (p ? 'lineas') or (p ? 'copias') or (p ? 'minutos');
@@ -252,14 +252,14 @@ begin
 end $$;
 
 create or replace function public.admin_borrar_pedido(p_clave text, p_id uuid) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform public._exigir_admin(p_clave);
   delete from public.pedidos where id = p_id;
 end $$;
 
 create or replace function public.admin_filamento(p_clave text, f jsonb) returns uuid
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid := nullif(f->>'id', '')::uuid; a public.ajustes;
 begin
   perform public._exigir_admin(p_clave);
@@ -286,14 +286,14 @@ begin
 end $$;
 
 create or replace function public.admin_borrar_filamento(p_clave text, p_id uuid) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform public._exigir_admin(p_clave);
   delete from public.filamentos where id = p_id;
 end $$;
 
 create or replace function public.admin_ajustes(p_clave text, a jsonb) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform public._exigir_admin(p_clave);
   update public.ajustes set
@@ -306,7 +306,7 @@ begin
 end $$;
 
 create or replace function public.admin_cambiar_clave(p_clave text, p_nueva text) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform public._exigir_admin(p_clave);
   if length(trim(coalesce(p_nueva, ''))) < 4 then raise exception 'La clave necesita al menos 4 caracteres'; end if;
