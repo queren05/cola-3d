@@ -88,7 +88,7 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
 
 /** Ficha del pedido: foto grande, estados con fecha, desglose del coste y, en el taller, todo lo editable. */
 export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void }) {
-  const { api, clave, esAdmin, tokens, aviso, datos } = useDatos();
+  const { api, clave, esAdmin, tokens, aviso, datos, esMio, sesion } = useDatos();
   const [ocupado, setOcupado] = useState(false);
   const [borrar, setBorrar] = useState(false);
   const [editar, setEditar] = useState(false);
@@ -168,7 +168,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
               </div>
             )}
 
-            {!esAdmin && !p.pagado && p.estado !== "cancelado" && !p.peticion && <Pago p={p} bizum={datos.ajustes.bizum} />}
+            {!esAdmin && esMio(p) && !p.pagado && p.estado !== "cancelado" && !p.peticion && !esTaller(p) && <Pago p={p} bizum={datos.ajustes.bizum} />}
 
             {!!p.url && (
               <a className="boton primario ancho" href={p.url} target="_blank" rel="noopener noreferrer">
@@ -299,13 +299,13 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
               </div>
             )}
 
-            {!esAdmin && token && p.estado === "pendiente" && (
+            {(token || (!!sesion && p.user_id === sesion.id)) && p.estado === "pendiente" && (
               <div className="fila-botones">
                 {!borrar ? (
                   <button className="boton peligro-suave" onClick={() => setBorrar(true)}>Cancelar mi pedido</button>
                 ) : (
                   <>
-                    <button className="boton peligro" disabled={ocupado} onClick={() => hacer(() => api.cancelarPedido(p.id, token), "Pedido cancelado")}>Sí, cancelarlo</button>
+                    <button className="boton peligro" disabled={ocupado} onClick={() => hacer(() => api.cancelarPedido(p.id, token || ""), "Pedido cancelado")}>Sí, cancelarlo</button>
                     <button className="boton" onClick={() => setBorrar(false)}>No</button>
                   </>
                 )}
