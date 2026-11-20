@@ -126,7 +126,7 @@ function Panel() {
           <label className="campo"><span>Rollo sin precio propio (€)</span><input id="a-precio" className="num" inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} /></label>
           <label className="campo"><span>Gramos por rollo</span><input id="a-peso" className="num" inputMode="numeric" value={peso} onChange={(e) => setPeso(e.target.value)} /></label>
           <label className="campo"><span>Luz y desgaste por hora (€)</span><input id="a-luz" className="num" inputMode="decimal" value={luz} onChange={(e) => setLuz(e.target.value)} /></label>
-          <label className="campo"><span>Purga con varios colores (%)</span><input id="a-merma" className="num" inputMode="decimal" value={merma} onChange={(e) => setMerma(e.target.value)} /></label>
+          <label className="campo"><span>Purga por cada color de más (%)</span><input id="a-merma" className="num" inputMode="decimal" value={merma} onChange={(e) => setMerma(e.target.value)} /></label>
           <label className="campo"><span>Gramos gratis por persona</span><input id="a-gratis" className="num" inputMode="numeric" value={gratisG} onChange={(e) => setGratisG(e.target.value)} placeholder="50" /></label>
           <label className="campo"><span>Teléfono para Bizum</span><input id="a-bizum" className="num" inputMode="tel" autoComplete="off" value={bizum} onChange={(e) => setBizum(e.target.value)} placeholder="600 000 000" maxLength={30} /></label>
         </div>

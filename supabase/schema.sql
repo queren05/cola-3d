@@ -136,7 +136,8 @@ begin
     salida := salida || jsonb_build_object('nombre', coalesce(f_nombre, l->>'nombre'), 'color', coalesce(f_color, l->>'color'),
       'gramos', g, 'precio', precio, 'peso', peso, 'coste', round(c, 2));
   end loop;
-  if colores > 1 then merma_pct := a.merma_pct; end if;
+  -- cada color de más purga hilo en cada cambio: 2 colores +10 %, 3 colores +20 %… (máximo 50 %)
+  if colores > 1 then merma_pct := least(50, a.merma_pct * (colores - 1)); end if;
   merma := fil * merma_pct / 100;
   luz := coalesce(p_minutos, 0) / 60.0 * cop * a.luz_hora;
   return jsonb_build_object('filamento', round(fil, 2), 'merma', round(merma, 2), 'merma_pct', merma_pct, 'luz', round(luz, 2),

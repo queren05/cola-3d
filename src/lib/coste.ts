@@ -20,7 +20,8 @@ export function calcularCoste(lineas: Linea[], minutos: number, copias: number, 
     if (g > 0) colores++;
     return { nombre: f?.nombre ?? l.nombre, color: f?.color ?? l.color, gramos: g, precio, peso, coste: r2(c) };
   });
-  const mermaPct = colores > 1 ? a.merma_pct : 0;
+  // cada color de más purga hilo en cada cambio: 2 colores +10 %, 3 colores +20 %… (máximo 50 %)
+  const mermaPct = colores > 1 ? Math.min(50, a.merma_pct * (colores - 1)) : 0;
   const merma = (fil * mermaPct) / 100;
   const luz = ((minutos || 0) / 60) * cop * a.luz_hora;
   return { filamento: r2(fil), merma: r2(merma), merma_pct: mermaPct, luz: r2(luz), gramos: gtot, total: r2(fil + merma + luz), lineas: out };
