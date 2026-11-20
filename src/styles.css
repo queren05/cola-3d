@@ -663,3 +663,24 @@ button.quien:not(:has(.avatar)) { padding: 0 14px; background: var(--hot); color
 @media (prefers-reduced-motion: no-preference) { .regalo-icono { animation: regalo 2.6s ease-in-out infinite; } }
 @keyframes regalo { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-10deg) scale(1.06); } 84% { transform: rotate(8deg) scale(1.06); } 92% { transform: rotate(-4deg); } }
 .r-gratis, .desglose-fila.gratis { color: var(--ok); font-weight: 650; }
+
+/* vitrina: lo que ha salido de la impresora */
+.vitrina { columns: 4 240px; column-gap: 14px; }
+.vitrina-pieza { all: unset; box-sizing: border-box; display: block; width: 100%; break-inside: avoid; margin-bottom: 14px; cursor: pointer; border-radius: 20px; overflow: hidden;
+  background: var(--surface); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); box-shadow: var(--shadow); transition: box-shadow 0.3s; }
+.vitrina-pieza:hover { box-shadow: var(--shadow-up); }
+.vitrina-pieza:focus-visible { outline: 2.5px solid var(--hot); outline-offset: 3px; }
+.vitrina-foto { position: relative; }
+.vitrina-foto .portada { height: auto; }
+.vitrina-foto .portada img { height: auto; aspect-ratio: auto; max-height: 520px; }
+.vitrina-foto.sin-foto .portada { aspect-ratio: 4 / 3; }
+.vitrina-foto.sin-foto .portada img { height: 100%; filter: saturate(0.85); }
+.vitrina-num, .vitrina-modelo { position: absolute; left: 10px; bottom: 10px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: var(--glass); color: var(--ink); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.vitrina-modelo { opacity: 0.85; }
+.vitrina-txt { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+.vitrina-txt strong { font: 700 16px/1.25 var(--display); overflow-wrap: anywhere; }
+.vitrina-txt span { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.vitrina-foto .foto-real { display: none; }
+@media (max-width: 560px) { .vitrina { columns: 2; column-gap: 10px; } .vitrina-pieza { margin-bottom: 10px; border-radius: 16px; } .vitrina-txt { padding: 10px 11px 12px; } .vitrina-txt strong { font-size: 14.5px; } }
+@media (max-width: 340px) { .vitrina { columns: 1; } }
+@media (max-width: 760px) { .nav-movil button { font-size: 10.5px; } }

@@ -1,6 +1,6 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IBobina, ICola, IGente, IPedir, ITaller } from "./components/Iconos";
+import { IBobina, ICola, IGente, IPedir, ITaller, IVitrina } from "./components/Iconos";
 import { DetallePedido } from "./components/Pedido";
 import { MenuCuenta, NuevaClave } from "./components/Sesion";
 import { Cola } from "./pages/Cola";
@@ -8,11 +8,13 @@ import { Filamentos } from "./pages/Filamentos";
 import { Gente } from "./pages/Gente";
 import { Pedir } from "./pages/Pedir";
 import { Taller } from "./pages/Taller";
+import { Vitrina } from "./pages/Vitrina";
 import { useDatos, useRuta } from "./lib/store";
 
 const SECCIONES = [
   { id: "", label: "Cola", Icono: ICola },
   { id: "pedir", label: "Pedir", Icono: IPedir },
+  { id: "vitrina", label: "Vitrina", Icono: IVitrina },
   { id: "filamentos", label: "Filamentos", Icono: IBobina },
   { id: "gente", label: "Gente", Icono: IGente },
   { id: "taller", label: "Taller", Icono: ITaller },
@@ -52,6 +54,9 @@ export default function App() {
   switch (seccion) {
     case "pedir":
       pagina = <Pedir ir={ir} />;
+      break;
+    case "vitrina":
+      pagina = <Vitrina abrir={abrir} />;
       break;
     case "filamentos":
       pagina = <Filamentos />;

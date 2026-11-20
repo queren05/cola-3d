@@ -48,3 +48,6 @@ export const ICandado = (p: SVGProps<SVGSVGElement>) => (
 export const IEuro = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M17.5 6.5A6.5 6.5 0 0 0 7 12a6.5 6.5 0 0 0 10.5 5.5M5 10h8M5 14h8" /></svg>
 );
+export const IVitrina = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><rect x="3.5" y="4" width="17" height="16" rx="2.5" /><path d="M3.5 11.5h17M8 11.5V9.5M12 11.5V8M16 11.5v-1.5M7 20v-4.5h4V20M14 20v-3h3v3" /></svg>
+);
