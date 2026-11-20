@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ICerrar, ICheck, IMas } from "../components/Iconos";
-import { Bobina, EtiquetaColor, Muestra, Numero } from "../components/Piezas";
+import { Bobina, EtiquetaColor, Muestra, Numero, ClaveInput } from "../components/Piezas";
 import { calcularCoste } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
@@ -476,7 +476,7 @@ function Cuenta() {
         </AnimatePresence>
         <label className="campo"><span>Correo</span><input id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
         {modo !== "olvido" && (
-          <label className="campo"><span>Contraseña</span><input id="c-clave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete={modo === "crear" ? "new-password" : "current-password"} minLength={6} required /></label>
+          <label className="campo"><span>Contraseña</span><ClaveInput id="c-clave" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete={modo === "crear" ? "new-password" : "current-password"} minLength={6} required /></label>
         )}
         <button className="boton primario ancho" disabled={ocupado}>{modo === "entrar" ? "Entrar" : modo === "crear" ? "Crear cuenta" : "Mandarme el correo"}</button>
         <button type="button" className="boton plano" onClick={() => setModo(modo === "entrar" ? "crear" : "entrar")}>

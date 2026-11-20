@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { clave as claveNombre } from "../lib/formato";
 import { useDatos } from "../lib/store";
-import { Avatar } from "./Piezas";
+import { Avatar, ClaveInput } from "./Piezas";
 
 /** nombre arriba a la derecha: mi perfil y salir */
 export function MenuCuenta({ ir }: { ir: (r: string) => void }) {
@@ -76,7 +76,7 @@ export function NuevaClave() {
             <h2>Nueva contraseña</h2>
             <label className="campo">
               <span>Contraseña</span>
-              <input id="n-clave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="new-password" minLength={6} required autoFocus />
+              <ClaveInput id="n-clave" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="new-password" minLength={6} required autoFocus />
             </label>
             <button className="boton primario ancho" disabled={ocupado || clave.length < 6}>Guardar</button>
           </motion.form>

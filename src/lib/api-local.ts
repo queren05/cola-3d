@@ -115,6 +115,10 @@ export function apiLocal(): Api {
       await espera();
       return clave === leer().clave;
     },
+    async subirFoto(_id, foto) {
+      return await new Promise<string>((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => mal(new Error("No se ha podido leer la foto")); r.readAsDataURL(foto); });
+    },
+    async borrarFoto() {},
     async adminPedido(clave, id, c: CambiosPedido) {
       const d = await admin(clave);
       const p = d.pedidos.find((x) => x.id === id);
@@ -128,6 +132,8 @@ export function apiLocal(): Api {
       if (c.imagen !== undefined) p.imagen = c.imagen.slice(0, 600);
       if (c.notas !== undefined) p.notas = c.notas.slice(0, 600);
       if (c.pagado !== undefined) p.pagado = c.pagado;
+      if (c.fotos !== undefined) p.fotos = c.fotos.slice(0, 12);
+      if (c.prioridad !== undefined) p.prioridad = Math.max(0, Math.round(c.prioridad));
       if (cambiaCantidad) {
         p.coste_detalle = calcularCoste(p.lineas, p.minutos, p.copias, d.filamentos, d.ajustes);
         p.coste = p.coste_detalle.total;

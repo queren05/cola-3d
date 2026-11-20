@@ -99,6 +99,10 @@ export interface Pedido {
   coste_detalle: CosteDetalle;
   historial: Cambio[];
   descontado: boolean;
+  /** más alto = antes en la cola (solo lo cambia el taller) */
+  prioridad?: number;
+  /** fotos de cómo ha quedado (las sube el taller) */
+  fotos?: string[];
 }
 
 export interface NuevoPedido {
@@ -112,7 +116,7 @@ export interface NuevoPedido {
   notas: string;
 }
 
-export type CambiosPedido = Partial<Pick<Pedido, "estado" | "pagado" | "lineas" | "minutos" | "copias" | "titulo" | "imagen" | "notas">>;
+export type CambiosPedido = Partial<Pick<Pedido, "estado" | "pagado" | "lineas" | "minutos" | "copias" | "titulo" | "imagen" | "notas" | "prioridad" | "fotos">>;
 
 export interface Datos {
   ajustes: Ajustes;
@@ -152,4 +156,7 @@ export interface Api {
   /** avisa cuando se entra desde el correo de «he olvidado la contraseña» */
   alRecuperar?(cb: () => void): () => void;
   soyAdmin?(): Promise<boolean>;
+  /** sube una foto (ya reducida) y devuelve su dirección pública */
+  subirFoto?(pedidoId: string, foto: Blob): Promise<string>;
+  borrarFoto?(url: string): Promise<void>;
 }

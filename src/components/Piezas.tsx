@@ -123,3 +123,20 @@ export function Barra({ fraccion, color = "var(--hot)" }: { fraccion: number; co
     </div>
   );
 }
+
+/** campo de contraseña con botón para verla mientras se escribe */
+export function ClaveInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const [ver, setVer] = useState(false);
+  return (
+    <span className="clave-input">
+      <input {...props} type={ver ? "text" : "password"} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+      <button type="button" className="clave-ojo" onClick={() => setVer((v) => !v)} aria-label={ver ? "Ocultar contraseña" : "Ver contraseña"} aria-pressed={ver}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+          <circle cx="12" cy="12" r="3" />
+          <motion.path d="M4 4l16 16" initial={false} animate={{ opacity: ver ? 0 : 1, scale: ver ? 0.6 : 1 }} transition={{ duration: 0.25 }} />
+        </svg>
+      </button>
+    </span>
+  );
+}

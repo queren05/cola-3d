@@ -1,15 +1,28 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ICandado } from "../components/Iconos";
-import { Numero } from "../components/Piezas";
+import { Numero, ClaveInput } from "../components/Piezas";
 import { eur, gramos, num } from "../lib/formato";
 import { useDatos } from "../lib/store";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Taller() {
-  const { esAdmin } = useDatos();
-  return <div className="pagina estrecha">{esAdmin ? <Panel /> : <Entrar />}</div>;
+  const { esAdmin, api } = useDatos();
+  return <div className="pagina estrecha">{esAdmin ? <Panel /> : api.cuentas ? <SoloDueno /> : <Entrar />}</div>;
+}
+
+function SoloDueno() {
+  const { sesion } = useDatos();
+  return (
+    <header className="cabecera-pagina centro">
+      <motion.span className="candado" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 20 }}>
+        <ICandado width={34} height={34} />
+      </motion.span>
+      <h1>Taller</h1>
+      <p className="muted">{sesion ? "Esta cuenta no tiene acceso al taller." : "Solo puede entrar el dueño del taller con su cuenta."}</p>
+    </header>
+  );
 }
 
 function Entrar() {
@@ -39,7 +52,7 @@ function Entrar() {
       <form className="panel formulario" onSubmit={enviar}>
         <label className="campo">
           <span>Clave del taller</span>
-          <input id="t-clave" type="password" value={c} onChange={(e) => setC(e.target.value)} autoComplete="current-password" autoFocus />
+          <ClaveInput id="t-clave" value={c} onChange={(e) => setC(e.target.value)} autoComplete="current-password" autoFocus />
         </label>
         <AnimatePresence>{mal > 0 && <motion.p className="error-txt" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0 }}>Clave incorrecta</motion.p>}</AnimatePresence>
         <button className="boton primario ancho" disabled={!c || ocupado}>{ocupado ? "Comprobando…" : "Entrar"}</button>
@@ -126,7 +139,7 @@ function Panel() {
       {clave !== "" && (
         <section className="panel formulario">
           <h2>Clave del taller</h2>
-          <label className="campo"><span>Clave nueva</span><input id="a-nueva" type="password" value={nueva} onChange={(e) => setNueva(e.target.value)} autoComplete="new-password" minLength={4} /></label>
+          <label className="campo"><span>Clave nueva</span><ClaveInput id="a-nueva" value={nueva} onChange={(e) => setNueva(e.target.value)} autoComplete="new-password" minLength={4} /></label>
           <button
             className="boton"
             disabled={ocupado || nueva.trim().length < 4}

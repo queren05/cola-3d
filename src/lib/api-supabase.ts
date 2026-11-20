@@ -56,6 +56,16 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     cancelarPedido: (id, token) => rpc("cancelar_pedido", { p_id: id, p_token: token }),
     comprobarClave: (clave) => rpc<boolean>("comprobar_clave", { p_clave: clave }),
     adminPedido: (clave, id, cambios) => rpc("admin_pedido", { p_clave: clave, p_id: id, p: cambios }),
+    async subirFoto(pedidoId, foto) {
+      const ruta = `${pedidoId}/${Date.now()}.jpg`;
+      const { error } = await sb.storage.from("fotos").upload(ruta, foto, { contentType: "image/jpeg", upsert: false });
+      if (error) throw new Error(error.message.includes("row-level") || error.message.includes("Unauthorized") ? "Solo el taller puede subir fotos" : "No se ha podido subir la foto");
+      return sb.storage.from("fotos").getPublicUrl(ruta).data.publicUrl;
+    },
+    async borrarFoto(url) {
+      const ruta = url.split("/object/public/fotos/")[1];
+      if (ruta) await sb.storage.from("fotos").remove([decodeURIComponent(ruta)]);
+    },
     adminBorrarPedido: (clave, id) => rpc("admin_borrar_pedido", { p_clave: clave, p_id: id }),
     adminFilamento: (clave, f) => rpc("admin_filamento", { p_clave: clave, f }),
     adminBorrarFilamento: (clave, id) => rpc("admin_borrar_filamento", { p_clave: clave, p_id: id }),

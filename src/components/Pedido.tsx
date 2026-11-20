@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { dominio, duracion, eur, fechaLarga, gramos, hace, num } from "../lib/formato";
 import { useDatos } from "../lib/store";
 import { ESTADOS, type Estado, type Linea, type Pedido } from "../lib/types";
@@ -15,8 +16,8 @@ export function Portada({ p, alto, layoutId }: { p: Pedido; alto?: number; layou
   const franjas = colores.length ? colores : ["var(--line)"];
   return (
     <motion.div layoutId={layoutId} className="portada" style={alto ? { height: alto } : undefined} transition={{ duration: 0.45, ease }}>
-      {p.imagen && !rota ? (
-        <img src={p.imagen} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setRota(true)} />
+      {(p.fotos?.[0] || p.imagen) && !rota ? (
+        <img src={p.fotos?.[0] || p.imagen} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setRota(true)} />
       ) : (
         <div className="capas-portada" aria-hidden="true">
           {Array.from({ length: 14 }).map((_, i) => (
@@ -25,6 +26,7 @@ export function Portada({ p, alto, layoutId }: { p: Pedido; alto?: number; layou
           <b>{(p.titulo || dominio(p.url)).slice(0, 2).toUpperCase()}</b>
         </div>
       )}
+      {!!p.fotos?.length && !rota && <span className="foto-real">Foto real</span>}
       {p.estado === "imprimiendo" && (
         <div className="portada-imprimiendo">
           <Impresora size={34} />
@@ -155,6 +157,10 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
               <IEnlace width={18} height={18} /> Abrir en {dominio(p.url)}
             </a>
 
+            {(esAdmin || !!p.fotos?.length) && (
+              <Fotos p={p} puede={esAdmin && clave !== null && !!api.subirFoto} guardar={(fotos) => api.adminPedido(clave ?? "", p.id, { fotos })} />
+            )}
+
             {/* línea de estados */}
             <ol className="camino" style={{ ["--n" as string]: camino.length }}>
               {camino.map((e, i) => (
@@ -191,6 +197,13 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                   <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { pagado: !p.pagado }), p.pagado ? "Quitado el pagado" : "Marcado como pagado")}>
                     {p.pagado ? "Quitar pagado" : "Marcar pagado"}
                   </button>
+                  {p.estado === "pendiente" && (
+                    (p.prioridad || 0) > 0 ? (
+                      <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { prioridad: 0 }), "Vuelve a su sitio en la cola")}>Quitar prioridad</button>
+                    ) : (
+                      <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { prioridad: Math.max(0, ...datos.pedidos.map((x) => x.prioridad || 0)) + 1 }), "Pasado el primero de la cola")}>Pasar el primero</button>
+                    )
+                  )}
                   <button className="boton" onClick={() => setEditar((v) => !v)}>{editar ? "Cerrar ajuste" : "Ajustar gramos"}</button>
                   {!borrar ? (
                     <button className="boton peligro-suave" onClick={() => setBorrar(true)}><IPapelera width={16} height={16} /> Borrar</button>
@@ -351,5 +364,81 @@ function Pago({ p, bizum }: { p: Pedido; bizum: string }) {
         </button>
       )}
     </motion.div>
+  );
+}
+
+/** reduce la foto a 1600 px como mucho y la pasa a JPEG */
+async function reducir(f: File): Promise<Blob> {
+  const bmp = await createImageBitmap(f);
+  const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k);
+  c.height = Math.round(bmp.height * k);
+  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+  return await new Promise<Blob>((ok, mal) => c.toBlob((b) => (b ? ok(b) : mal(new Error("No se ha podido leer la foto"))), "image/jpeg", 0.85));
+}
+
+function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fotos: string[]) => Promise<void> }) {
+  const { api, aviso } = useDatos();
+  const [subiendo, setSubiendo] = useState(0);
+  const [grande, setGrande] = useState<string | null>(null);
+  const fotos = p.fotos || [];
+  async function elegir(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = [...(e.target.files || [])].slice(0, 12 - fotos.length);
+    e.target.value = "";
+    if (!files.length || !api.subirFoto) return;
+    setSubiendo(files.length);
+    try {
+      const nuevas: string[] = [];
+      for (const f of files) {
+        nuevas.push(await api.subirFoto(p.id, await reducir(f)));
+        setSubiendo((n) => n - 1);
+      }
+      await guardar([...fotos, ...nuevas]);
+      aviso(nuevas.length === 1 ? "Foto subida" : `${nuevas.length} fotos subidas`);
+    } catch (err) {
+      aviso(err instanceof Error ? err.message : "No se ha podido subir la foto", "error");
+    } finally {
+      setSubiendo(0);
+    }
+  }
+  async function quitar(url: string) {
+    try {
+      await guardar(fotos.filter((x) => x !== url));
+      await api.borrarFoto?.(url).catch(() => {});
+      aviso("Foto quitada");
+    } catch (err) {
+      aviso(err instanceof Error ? err.message : "No se ha podido quitar", "error");
+    }
+  }
+  return (
+    <div className="bloque">
+      <span className="etiqueta">Cómo ha quedado</span>
+      <div className="fotos">
+        <AnimatePresence initial={false}>
+          {fotos.map((u) => (
+            <motion.div key={u} className="foto" layout initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }} transition={{ duration: 0.3, ease }}>
+              <button className="foto-ver" onClick={() => setGrande(u)} aria-label="Ver en grande"><img src={u} alt="" loading="lazy" /></button>
+              {puede && <button className="foto-quitar" onClick={() => quitar(u)} aria-label="Quitar foto"><ICerrar width={14} height={14} /></button>}
+            </motion.div>
+          ))}
+          {Array.from({ length: subiendo }).map((_, i) => <motion.div key={"s" + i} className="foto cargando" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />)}
+        </AnimatePresence>
+        {puede && fotos.length < 12 && (
+          <label className="foto foto-subir">
+            <input type="file" accept="image/*" multiple onChange={elegir} disabled={subiendo > 0} />
+            <span aria-hidden="true">+</span>
+            <small>{subiendo ? "Subiendo…" : "Subir foto"}</small>
+          </label>
+        )}
+      </div>
+      {createPortal(<AnimatePresence>
+        {grande && (
+          <motion.div className="foto-grande" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={(e) => { e.stopPropagation(); setGrande(null); }}>
+            <motion.img src={grande} alt="" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 300, damping: 28 }} />
+          </motion.div>
+        )}
+      </AnimatePresence>, document.body)}
+    </div>
   );
 }

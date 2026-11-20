@@ -53,7 +53,7 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
     <div className="pagina">
       <AnimatePresence mode="wait" initial={false}>
         {sel ? (
-          <motion.div key={sel.clave} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.35, ease }}>
+          <motion.div key={sel.clave} className="pila" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.35, ease }}>
             <button className="boton plano volver" onClick={() => ir("gente")}><IFlecha width={18} height={18} /> Gente</button>
             <header className="persona-cab">
               <motion.div layoutId={`av-${sel.clave}`}><Avatar nombre={sel.nombre} size={64} /></motion.div>
@@ -85,7 +85,7 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
             </div>
           </motion.div>
         ) : (
-          <motion.div key="lista" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.35, ease }}>
+          <motion.div key="lista" className="pila" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.35, ease }}>
             <header className="cabecera-pagina">
               <span className="sobretitulo">Quién ha pedido qué</span>
               <h1>Gente</h1>

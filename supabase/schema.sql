@@ -64,8 +64,12 @@ create table if not exists public.pedidos (
   coste numeric not null default 0,
   coste_detalle jsonb not null default '{}',
   historial jsonb not null default '[]',        -- [{estado, fecha}]
-  descontado boolean not null default false     -- si ya se restó del stock
+  descontado boolean not null default false,    -- si ya se restó del stock
+  prioridad int not null default 0,             -- más alto = antes en la cola
+  fotos jsonb not null default '[]'             -- fotos de cómo ha quedado
 );
+alter table public.pedidos add column if not exists prioridad int not null default 0;
+alter table public.pedidos add column if not exists fotos jsonb not null default '[]';
 
 -- quien pide guarda un código para poder cancelar su pedido sin cuenta
 create table if not exists public.pedido_tokens (
@@ -236,6 +240,10 @@ begin
   if p ? 'imagen' then r.imagen := left(p->>'imagen', 600); end if;
   if p ? 'notas' then r.notas := left(p->>'notas', 600); end if;
   if p ? 'pagado' then r.pagado := (p->>'pagado')::boolean; end if;
+  if p ? 'fotos' and jsonb_typeof(p->'fotos') = 'array' then
+    r.fotos := coalesce((select jsonb_agg(left(x, 600)) from (select jsonb_array_elements_text(p->'fotos') x limit 12) t where x like 'https://%'), '[]'::jsonb);
+  end if;
+  if p ? 'prioridad' then r.prioridad := greatest(0, (p->>'prioridad')::int); end if;
   if cambia then
     v_det := public._coste(r.lineas, r.minutos, r.copias);
     r.coste_detalle := v_det; r.coste := (v_det->>'total')::numeric;
@@ -254,7 +262,7 @@ begin
   end if;
   update public.pedidos set lineas = r.lineas, copias = r.copias, minutos = r.minutos, titulo = r.titulo, imagen = r.imagen,
     notas = r.notas, pagado = r.pagado, coste = r.coste, coste_detalle = r.coste_detalle, estado = r.estado,
-    historial = r.historial, descontado = r.descontado, actualizado = now()
+    historial = r.historial, descontado = r.descontado, prioridad = r.prioridad, fotos = r.fotos, actualizado = now()
   where id = p_id;
 end $$;
 
@@ -334,3 +342,13 @@ begin
   begin alter publication supabase_realtime add table public.filamentos; exception when others then null; end;
   begin alter publication supabase_realtime add table public.ajustes; exception when others then null; end;
 end $$;
+
+-- ---------- fotos de cómo han quedado (Storage) ----------
+-- todos las ven; solo la cuenta del taller (tabla admins) las sube o las borra
+insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true) on conflict (id) do nothing;
+drop policy if exists "fotos taller sube" on storage.objects;
+drop policy if exists "fotos taller borra" on storage.objects;
+create policy "fotos taller sube" on storage.objects for insert to authenticated
+  with check (bucket_id = 'fotos' and exists (select 1 from public.admins where user_id = auth.uid()));
+create policy "fotos taller borra" on storage.objects for delete to authenticated
+  using (bucket_id = 'fotos' and exists (select 1 from public.admins where user_id = auth.uid()));

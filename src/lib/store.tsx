@@ -138,8 +138,8 @@ export function Proveedor({ children }: { children: ReactNode }) {
           return n;
         });
       },
-      clave: clave ?? (adminCuenta ? "" : null),
-      esAdmin: clave !== null || adminCuenta,
+      clave: api.cuentas ? (adminCuenta ? "" : null) : clave,
+      esAdmin: api.cuentas ? adminCuenta : clave !== null,
       entrarTaller: async (c) => {
         const ok = await api.comprobarClave(c).catch(() => false);
         if (ok) {

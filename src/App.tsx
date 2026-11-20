@@ -21,6 +21,7 @@ const SECCIONES = [
 export default function App() {
   const [ruta, ir] = useRuta();
   const { datos, toasts, api, esAdmin, sesion, api: { cuentas } } = useDatos();
+  const secciones = SECCIONES.filter((s) => s.id !== "taller" || esAdmin || !cuentas);
   const seccion = SECCIONES.some((s) => s.id === ruta[0]) ? ruta[0] : "";
   const [abierto, setAbierto] = useState<string | null>(null);
   const abiertoRef = useRef<string | null>(null);
@@ -79,7 +80,7 @@ export default function App() {
               <span>Cola 3D</span>
             </button>
             <nav className="nav-escritorio" aria-label="Secciones">
-              {SECCIONES.map((s) => (
+              {secciones.map((s) => (
                 <button key={s.id} className={seccion === s.id ? "activo" : ""} onClick={() => ir(s.id)} aria-current={seccion === s.id ? "page" : undefined}>
                   {seccion === s.id && <motion.span layoutId="nav-fondo" className="nav-fondo" transition={{ type: "spring", stiffness: 480, damping: 38 }} />}
                   <span>{s.label}</span>
@@ -104,7 +105,7 @@ export default function App() {
         </main>
 
         <nav className="nav-movil" aria-label="Secciones">
-          {SECCIONES.map(({ id, label, Icono }) => (
+          {secciones.map(({ id, label, Icono }) => (
             <button key={id} className={seccion === id ? "activo" : ""} onClick={() => ir(id)} aria-current={seccion === id ? "page" : undefined}>
               {seccion === id && <motion.span layoutId="nav-movil-fondo" className="nav-movil-fondo" transition={{ type: "spring", stiffness: 480, damping: 38 }} />}
               <span className="nm-icono">

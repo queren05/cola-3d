@@ -19,7 +19,7 @@ const FILTROS: { id: Filtro; label: string }[] = [
 export function ordenCola(ps: Pedido[]) {
   const imp = ps.filter((p) => p.estado === "imprimiendo").sort((a, b) => a.creado.localeCompare(b.creado));
   // pendientes: primero los ya pagados (listos para imprimir), luego por fecha de llegada
-  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => Number(b.pagado) - Number(a.pagado) || a.creado.localeCompare(b.creado));
+  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => (b.prioridad || 0) - (a.prioridad || 0) || Number(b.pagado) - Number(a.pagado) || a.creado.localeCompare(b.creado));
   return [...imp, ...pen];
 }
 
