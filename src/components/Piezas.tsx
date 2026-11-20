@@ -26,7 +26,7 @@ export function Bobina({ color, fraccion, size = 64, girar = false }: { color: s
   const r = 26, c = 2 * Math.PI * r;
   return (
     <motion.svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" animate={girar ? { rotate: 360 } : undefined} transition={girar ? { repeat: Infinity, duration: 6, ease: "linear" } : undefined}>
-      <circle cx="32" cy="32" r="30" fill="var(--spool)" />
+      <circle cx="32" cy="32" r="30" fill="var(--spool)" stroke="var(--swatch-ring)" strokeWidth=".8" />
       <circle cx="32" cy="32" r={r} fill="none" stroke="var(--spool-track)" strokeWidth="9" />
       <motion.circle
         cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="9" strokeLinecap="butt"
@@ -36,6 +36,18 @@ export function Bobina({ color, fraccion, size = 64, girar = false }: { color: s
         animate={{ strokeDashoffset: c * (1 - f) }}
         transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
       />
+      {/* borde fino del hilo: así se ve también un filamento negro sobre fondo oscuro (o blanco sobre claro) */}
+      {[r + 4.5, r - 4.5].map((rr) => (
+        <motion.circle
+          key={rr}
+          cx="32" cy="32" r={rr} fill="none" stroke="var(--swatch-ring)" strokeWidth=".9"
+          transform="rotate(-90 32 32)"
+          strokeDasharray={2 * Math.PI * rr}
+          initial={{ strokeDashoffset: 2 * Math.PI * rr }}
+          animate={{ strokeDashoffset: 2 * Math.PI * rr * (1 - f) }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        />
+      ))}
       {/* líneas del hilo enrollado */}
       <circle cx="32" cy="32" r={r - 2.5} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth=".8" strokeDasharray={f > 0 ? "2 2" : "0"} />
       <circle cx="32" cy="32" r="12" fill="var(--spool-hub)" />
@@ -112,13 +124,19 @@ export function Impresora({ size = 56 }: { size?: number }) {
           />
         ))}
       </g>
+      {/* la boquilla va justo encima de la capa que se imprime y sube con ellas (sin salirse del marco) */}
       <motion.g
-        animate={{ y: [0, 0, -16, -16, 0] }}
-        transition={{ duration: CICLO, times: [0, 0.06, 0.82, 0.88, 1], ease: "easeInOut", repeat: Infinity }}
+        animate={{ y: [0, 0, 0, -3.2, -6.4, -9.6, -12.8, -16, -16, 0, 0] }}
+        transition={{
+          duration: CICLO,
+          times: [0, inicio(0), inicio(1) - 0.02, inicio(1), inicio(2), inicio(3), inicio(4), inicio(5), 0.86, 0.97, 1],
+          ease: "easeInOut",
+          repeat: Infinity,
+        }}
       >
         <g className="boquilla">
-          <rect x="22" y="10" width="12" height="7" rx="2" fill="currentColor" />
-          <path d="M26 17h4l-2 3z" fill="currentColor" />
+          <rect x="23" y="27.5" width="10" height="6" rx="1.8" fill="currentColor" />
+          <path d="M26.5 33.5h3l-1.5 2.6z" fill="currentColor" />
         </g>
       </motion.g>
     </svg>
