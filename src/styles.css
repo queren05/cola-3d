@@ -1061,11 +1061,15 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .invitacion { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border-left: 4px solid var(--g-color, var(--hot)); }
 .invitacion.inv-familia, .grupo-sel.g-familia { --g-color: #e0679a; }
 .invitacion.inv-amigos, .grupo-sel.g-amigos { --g-color: #4f9be8; }
+.invitacion.inv-otros, .grupo-sel.g-otros { --g-color: #8a63d2; }
 .invitacion-txt { display: grid; gap: 2px; min-width: 0; }
 .invitacion-txt code { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .invitacion-botones { display: flex; gap: 6px; flex-wrap: wrap; }
 .invitacion-botones .boton { padding: 8px 12px; }
 .cuenta-grupo { grid-column: 2 / -1; margin-top: -6px; }
-.cuenta-grupo .grupo-sel { display: inline-block; margin-top: 4px; width: auto; font-size: 12.5px; font-weight: 700; padding: 3px 26px 3px 10px; border-radius: 999px; border: 1.5px solid var(--g-color, var(--line)); color: var(--g-color, var(--muted)); background-color: color-mix(in srgb, var(--g-color, var(--muted)) 12%, transparent); min-height: 0; }
+.grupos-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.cuenta-grupo .grupo-sel { display: inline-block; font: inherit; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1.5px dashed var(--line); color: var(--muted); background: transparent; cursor: pointer; white-space: nowrap; transition: background-color .2s, color .2s, border-color .2s; }
+.cuenta-grupo .grupo-sel.on, .cuenta-grupo span.grupo-sel { border-style: solid; border-color: var(--g-color); color: var(--g-color); background-color: color-mix(in srgb, var(--g-color) 13%, transparent); }
+.cuenta-grupo button.grupo-sel:disabled { opacity: .6; cursor: wait; }
 .grupo-sel.g-nada { --g-color: var(--st-imprimiendo); }
 .cuenta-grupo span.grupo-sel.g-taller { --g-color: var(--hot); padding: 3px 10px; }

@@ -107,6 +107,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     },
     unirme: (codigo) => rpc<Grupo>("unirme", { p_codigo: codigo }),
     adminGrupo: (clave, userId, grupo) => rpc("admin_grupo", { p_clave: clave, p_user: userId, p_grupo: grupo }),
+    adminGrupos: (clave, userId, grupos) => rpc("admin_grupos", { p_clave: clave, p_user: userId, p_grupos: grupos }),
     adminInvitaciones: (clave) => rpc<{ grupo: Grupo; codigo: string }[]>("admin_invitaciones", { p_clave: clave }),
     adminNuevaInvitacion: (clave, grupo) => rpc<string>("admin_nueva_invitacion", { p_clave: clave, p_grupo: grupo }),
     votar: (id) => rpc<boolean>("votar", { p_id: id }),

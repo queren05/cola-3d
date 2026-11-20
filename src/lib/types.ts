@@ -45,12 +45,13 @@ export interface Ajustes {
   max_pendientes?: number;
 }
 
-export type Grupo = "familia" | "amigos";
+export type Grupo = "familia" | "amigos" | "otros";
 
 /** tu grupo y lo que llevas pedido este mes */
 export interface Acceso {
   taller: boolean;
-  grupo: Grupo | null;
+  /** sus grupos separados por comas («familia,amigos»); null = sin acceso */
+  grupo: string | null;
   limite_mes_g: number;
   max_pendientes: number;
   usado_mes_g: number;
@@ -172,7 +173,8 @@ export interface Cuenta {
   veces: number;
   confirmada: boolean;
   pedidos: number;
-  grupo?: Grupo | null;
+  /** sus grupos separados por comas; null = sin acceso */
+  grupo?: string | null;
   taller?: boolean;
 }
 
@@ -266,6 +268,7 @@ export interface Api {
   miAcceso?(): Promise<Acceso | null>;
   unirme?(codigo: string): Promise<Grupo>;
   adminGrupo?(clave: string, userId: string, grupo: Grupo | ""): Promise<void>;
+  adminGrupos?(clave: string, userId: string, grupos: Grupo[]): Promise<void>;
   adminInvitaciones?(clave: string): Promise<{ grupo: Grupo; codigo: string }[]>;
   adminNuevaInvitacion?(clave: string, grupo: Grupo): Promise<string>;
   /** cuentas creadas y cuándo han entrado (solo el taller) */

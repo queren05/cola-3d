@@ -92,31 +92,37 @@ export function Invitaciones() {
   );
 }
 
-/** desplegable para meter una cuenta en un grupo (o quitarle el acceso) */
-export function ElegirGrupo({ userId, nombre, grupo, alCambiar }: { userId: string; nombre: string; grupo: Grupo | null | undefined; alCambiar: (g: Grupo | null) => void }) {
+const GRUPOS: Grupo[] = ["familia", "amigos", "otros"];
+
+/** los grupos de una cuenta: se encienden y apagan (puede estar en varios; ninguno = sin acceso) */
+export function ElegirGrupo({ userId, nombre, grupo, alCambiar }: { userId: string; nombre: string; grupo: string | null | undefined; alCambiar: (g: string | null) => void }) {
   const { api, clave, aviso, recargar } = useDatos();
-  if (!api.adminGrupo) return null;
+  const [ocupado, setOcupado] = useState(false);
+  if (!api.adminGrupos) return null;
+  const tiene = (grupo || "").split(",").filter(Boolean) as Grupo[];
+  async function cambiar(g: Grupo) {
+    if (clave === null) return;
+    const nuevos = tiene.includes(g) ? tiene.filter((x) => x !== g) : GRUPOS.filter((x) => x === g || tiene.includes(x));
+    setOcupado(true);
+    try {
+      await api.adminGrupos!(clave, userId, nuevos);
+      alCambiar(nuevos.length ? nuevos.join(",") : null);
+      aviso(nuevos.length ? `${nombre}: ${nombreGrupo(nuevos.join(","))}` : `${nombre} ya no tiene acceso`);
+      recargar();
+    } catch (err) {
+      aviso(err instanceof Error ? err.message : "No se ha podido", "error");
+    } finally {
+      setOcupado(false);
+    }
+  }
   return (
-    <select
-      className={`grupo-sel g-${grupo || "nada"}`}
-      aria-label={`Grupo de ${nombre}`}
-      value={grupo || ""}
-      onChange={async (e) => {
-        const g = (e.target.value || "") as Grupo | "";
-        if (clave === null) return;
-        try {
-          await api.adminGrupo!(clave, userId, g);
-          alCambiar(g || null);
-          aviso(g ? `${nombre} ahora está en ${nombreGrupo(g)}` : `${nombre} ya no tiene acceso`);
-          recargar();
-        } catch (err) {
-          aviso(err instanceof Error ? err.message : "No se ha podido", "error");
-        }
-      }}
-    >
-      <option value="">Sin acceso</option>
-      <option value="familia">Familia</option>
-      <option value="amigos">Amigos</option>
-    </select>
+    <div className="grupos-chips" role="group" aria-label={`Grupos de ${nombre}`}>
+      {GRUPOS.map((g) => (
+        <button key={g} type="button" disabled={ocupado} className={`grupo-sel g-${g}${tiene.includes(g) ? " on" : ""}`} aria-pressed={tiene.includes(g)} onClick={() => cambiar(g)}>
+          {nombreGrupo(g)}
+        </button>
+      ))}
+      {!tiene.length && <span className="grupo-sel g-nada">Sin acceso</span>}
+    </div>
   );
 }

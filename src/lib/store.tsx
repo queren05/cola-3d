@@ -41,7 +41,8 @@ function leerInvitacion(): string | null {
   return ls<string | null>("cola3d-invita", null);
 }
 
-export const nombreGrupo = (g: Grupo | null | undefined) => (g === "familia" ? "Familia" : g === "amigos" ? "Amigos" : "Sin acceso");
+export const nombreGrupo = (g: Grupo | string | null | undefined) =>
+  g ? g.split(",").map((x) => (x === "familia" ? "Familia" : x === "amigos" ? "Amigos" : x === "otros" ? "Otros" : x)).join(" y ") : "Sin acceso";
 
 export interface Toast {
   id: number;
