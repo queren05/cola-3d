@@ -2,10 +2,12 @@ const eurF = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR"
 const n0F = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
 const n1F = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
 
-export const eur = (v: number) => eurF.format(v || 0);
+export const eur = (v: number) => eurF.format(v || 0).replace(/\s/g, "\u00a0");
 export const n0 = (v: number) => n0F.format(v || 0);
 export const n1 = (v: number) => n1F.format(v || 0);
-export const gramos = (g: number) => (g >= 1000 ? `${n1(g / 1000)} kg` : `${n0(g)} g`);
+// espacio que no se parte: «14 g» nunca queda con el número en una línea y la unidad en otra
+const NB = "\u00a0";
+export const gramos = (g: number) => (g >= 1000 ? `${n1(g / 1000)}${NB}kg` : `${n0(g)}${NB}g`);
 
 /** «12,5» → 12.5 ; «1.200» → 1200 */
 export function num(v: string | number | null | undefined): number {
@@ -19,10 +21,13 @@ export function duracion(min: number): string {
   const m = Math.round(min || 0);
   if (!m) return "";
   const h = Math.floor(m / 60), r = m % 60;
-  return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`;
+  return h ? (r ? `${h}${NB}h ${r}${NB}min` : `${h}${NB}h`) : `${r}${NB}min`;
 }
 
 export function hace(iso: string): string {
+  return haceTxt(iso).replace(/ /g, "\u00a0");
+}
+function haceTxt(iso: string): string {
   const d = new Date(iso);
   if (isNaN(+d)) return "";
   const s = (Date.now() - +d) / 1000;

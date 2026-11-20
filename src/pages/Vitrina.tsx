@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IVitrina } from "../components/Iconos";
+import { Ficha } from "../components/Ficha";
+import { SelectorVista, useVista } from "../components/Ver";
 import { Portada, reducir } from "../components/Pedido";
 import { ICerrar } from "../components/Iconos";
 import { Avatar, Muestra, Numero, Vacio } from "../components/Piezas";
@@ -34,6 +36,7 @@ const enPrecio = (c: number, t: string) => !t || (t === "1" ? c <= 1 : t === "5"
 export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
   const { datos, cargado, esAdmin, sesion, api } = useDatos();
   const [nueva, setNueva] = useState(false);
+  const [ver, setVer] = useVista("vitrina");
   const [orden, setOrden] = useState<Orden>("recientes");
   const [soloFotos, setSoloFotos] = useState(false);
   const [soloGuardadas, setSoloGuardadas] = useState(false);
@@ -111,6 +114,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
 
       {hechas.length > 0 && (
         <div className="v-filtros">
+          <div className="barra-filtros">
           <div className="filtros" role="tablist" aria-label="Ordenar">
             {([["recientes", "Recientes"], ["gustan", "Más gustan"], ["grandes", "Más grandes"], ["caras", "Más caras"]] as [Orden, string][]).map(([id, t]) => (
               <button key={id} className={orden === id ? "activo" : ""} onClick={() => setOrden(id)} role="tab" aria-selected={orden === id}>
@@ -118,6 +122,8 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
                 <span>{t}</span>
               </button>
             ))}
+          </div>
+          <SelectorVista valor={ver} onCambio={setVer} id="vitrina" />
           </div>
           <div className="v-chips">
             <button className={`v-chip${soloFotos ? " activo" : ""}`} onClick={() => setSoloFotos((v) => !v)} aria-pressed={soloFotos}>Con foto</button>
@@ -157,10 +163,10 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
       {!cargado ? null : lista.length === 0 ? (
         <Vacio titulo={!hechas.length ? "Aún no se ha impreso nada" : soloGuardadas ? "No has guardado ninguna" : "Nada con estos filtros"} icono={<IVitrina width={48} height={48} />} />
       ) : (
-        <motion.div className="vitrina" layout>
+        <motion.div className={`vitrina v-${ver}`} layout>
           <AnimatePresence initial={true}>
             {lista.map((p, i) => (
-              <motion.div
+              <Ficha
                 key={p.id}
                 layout
                 role="button"
@@ -191,7 +197,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
                     <BotonGusta id={p.id} n={gustan.get(p.id) || 0} mio={misVotos.has(p.id)} puede={puedeVotar} />
                   </div>
                 </div>
-              </motion.div>
+              </Ficha>
             ))}
           </AnimatePresence>
         </motion.div>

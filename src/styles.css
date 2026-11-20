@@ -641,8 +641,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--mute
 }
 /* animaciones finas */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .tarjeta { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s; }
-  .tarjeta:hover { transform: translateY(-4px); box-shadow: var(--shadow-up); }
+  .tarjeta { transition: box-shadow 0.35s; }
+  .tarjeta:hover { box-shadow: var(--shadow-up); }
   .cifras > div, .dato { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
   .cifras > div:hover, .dato:hover { transform: translateY(-2px); }
 }
@@ -875,3 +875,86 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .comprobar-tabla b.dif { color: var(--danger); }
 .comprobar-txt { font-size: 13px; color: var(--muted); }
 .comprobar .boton { align-self: flex-start; }
+
+/* los números con su unidad no se parten en dos líneas */
+.num, .chip, .etiqueta, .precio, .turno, .colores, .vitrina-g, .linea-fija, .cuenta-datos small, .persona-cifras small { white-space: nowrap; }
+.colores { flex: none; }
+.tarjeta-pie { flex-wrap: wrap; row-gap: 6px; }
+.tarjeta-pie .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+
+/* fichas que se inclinan con el ratón: brillo que sigue al puntero */
+.tarjeta, .vitrina-pieza { position: relative; transform-style: preserve-3d; will-change: transform; }
+.brillo { position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity 0.35s; mix-blend-mode: soft-light; }
+.tarjeta:hover .brillo, .vitrina-pieza:hover .brillo { opacity: 1; }
+@media (hover: none) { .brillo { display: none; } }
+
+/* barra de filtros con «Ver:» a la derecha */
+.barra-filtros { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.barra-filtros .filtros { flex: 0 1 auto; min-width: 0; }
+.ver { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); margin-left: auto; }
+.ver-txt { font-size: 13px; font-weight: 650; color: var(--muted); padding: 0 6px 0 8px; }
+.ver button { position: relative; width: 36px; height: 32px; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.ver button:hover { color: var(--ink); }
+.ver button.activo { color: var(--hot-ink); }
+.ver-fondo { position: absolute; inset: 0; border-radius: 10px; background: var(--hot); }
+.ver-ico { position: relative; z-index: 1; display: grid; }
+
+/* cola: en lista y en cuadrícula pequeña */
+.rejilla.v-pequena { grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 12px; }
+.rejilla.v-pequena .tarjeta-titulo { font-size: 14.5px; }
+.rejilla.v-pequena .tarjeta-cuerpo { padding: 10px 12px 12px; gap: 6px; }
+.rejilla.v-pequena .tarjeta-quien { font-size: 12px; }
+.rejilla.v-pequena .colores { display: none; }
+.rejilla.v-lista { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.rejilla.v-lista .tarjeta { flex-direction: row; align-items: stretch; }
+.rejilla.v-lista .tarjeta-img { width: 132px; flex: none; aspect-ratio: auto; min-height: 112px; }
+.rejilla.v-lista .tarjeta-cuerpo { flex: 1; min-width: 0; justify-content: center; }
+.rejilla.v-lista .precio { top: auto; bottom: 8px; right: 8px; font-size: 12.5px; }
+@media (max-width: 560px) {
+  .rejilla.v-pequena { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .rejilla.v-pequena .tarjeta-pie .chips > :not(.chip) { display: none; }
+  .rejilla.v-lista .tarjeta-img { width: 104px; min-height: 104px; }
+}
+
+/* vitrina: en lista y en cuadrícula pequeña */
+.vitrina.v-pequena { columns: 6 150px; column-gap: 10px; }
+.vitrina.v-pequena .vitrina-pieza { margin-bottom: 10px; border-radius: 14px; }
+.vitrina.v-pequena .vitrina-txt { padding: 8px 10px 10px; }
+.vitrina.v-pequena .vitrina-txt strong { font-size: 13.5px; }
+.vitrina.v-pequena .vitrina-txt > span { display: none; }
+.vitrina.v-lista { columns: 1; }
+.vitrina.v-lista .vitrina-pieza { display: flex; align-items: stretch; }
+.vitrina.v-lista .vitrina-foto { width: 140px; flex: none; }
+.vitrina.v-lista .vitrina-foto .portada { height: 100%; min-height: 120px; }
+.vitrina.v-lista .vitrina-foto .portada img { height: 100%; max-height: none; }
+.vitrina.v-lista .vitrina-txt { flex: 1; min-width: 0; justify-content: center; }
+@media (max-width: 560px) {
+  .vitrina.v-grande { columns: 1; }
+  .vitrina.v-pequena { columns: 3; column-gap: 8px; }
+  .vitrina.v-pequena .vitrina-pie .vitrina-g { display: none; }
+  .vitrina.v-lista .vitrina-foto { width: 108px; }
+}
+
+/* textos que no deben partirse */
+.marca, .marca span { white-space: nowrap; }
+.vitrina-txt > span, .tarjeta-quien span { white-space: nowrap; }
+.vitrina-txt > span { flex-wrap: nowrap; overflow: hidden; }
+@media (max-width: 420px) { .ver-txt { display: none; } }
+
+/* comprobar con MakerWorld: tres tarjetitas */
+.comprobar-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; }
+.comp-dato { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.comp-dato .etiqueta { display: flex; align-items: center; gap: 5px; }
+.comp-dato .ok { color: var(--ok); } .comp-dato .ko { color: var(--danger); }
+.comp-dato strong { font: 700 17px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comp-dato small { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.comp-dato.mal { border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.comp-dato.mal strong { color: var(--danger); }
+
+
+.vitrina.v-pequena .vitrina-modelo, .vitrina.v-pequena .vitrina-num { display: none; }
+.vitrina.v-pequena .guardar { width: 30px; height: 30px; top: 6px; right: 6px; }
+.tarjeta-quien { flex-wrap: nowrap; }
+.tarjeta-quien > span:first-of-type { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tarjeta-quien > span:last-child { flex: none; }
+.comp-dato small { white-space: nowrap; }

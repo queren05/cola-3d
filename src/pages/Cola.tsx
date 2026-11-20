@@ -5,6 +5,7 @@ import { Impresora, Numero, Vacio } from "../components/Piezas";
 import { TarjetaPedido } from "../components/Pedido";
 import { clave, gramos, n0 } from "../lib/formato";
 import { useDatos } from "../lib/store";
+import { SelectorVista, useVista } from "../components/Ver";
 import { acumula } from "../lib/coste";
 import type { Ajustes, Pedido } from "../lib/types";
 
@@ -48,6 +49,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
     return () => clearTimeout(t);
   }, [resaltado, setResaltado]);
 
+  const [ver, setVer] = useVista("cola");
   const cola = useMemo(() => ordenCola(datos.pedidos, datos.ajustes), [datos.pedidos, datos.ajustes]);
   const posiciones = useMemo(() => {
     const m = new Map<string, number>();
@@ -114,13 +116,16 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
         </div>
       </section>
 
-      <div className="filtros" role="tablist" aria-label="Qué pedidos ver">
+      <div className="barra-filtros">
+        <div className="filtros" role="tablist" aria-label="Qué pedidos ver">
         {FILTROS.map((f) => (
           <button key={f.id} role="tab" aria-selected={filtro === f.id} className={filtro === f.id ? "activo" : ""} onClick={() => setFiltro(f.id)}>
             {filtro === f.id && <motion.span layoutId="filtro-fondo" className="filtro-fondo" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
             <span>{f.label}</span>
           </button>
         ))}
+      </div>
+        <SelectorVista valor={ver} onCambio={setVer} id="cola" />
       </div>
 
       {error && <div className="aviso-error">{error}</div>}
@@ -141,7 +146,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
         </Vacio>
       ) : (
         <LayoutGroup>
-          <motion.div className="rejilla" layout>
+          <motion.div className={`rejilla v-${ver}`} layout>
             <AnimatePresence mode="popLayout">
               {lista.map((p) => (
                 <TarjetaPedido key={p.id} p={p} posicion={posiciones.get(p.id) ?? null} onAbrir={() => abrir(p.id)} mio={esMio(p)} resaltar={resaltado === p.id} />

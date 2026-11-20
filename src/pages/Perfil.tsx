@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useRef, useState } from "react";
+import { Ficha } from "../components/Ficha";
 import { Portada } from "../components/Pedido";
 import { Avatar, Chip, Numero, Vacio } from "../components/Piezas";
 import { IVitrina } from "../components/Iconos";
@@ -169,7 +170,7 @@ export function Perfil({ ir, abrir }: { ir: (r: string) => void; abrir: (id: str
       ) : (
         <motion.div className="vitrina" layout key={pestana + listaActual}>
           {piezas.map((p, i) => (
-            <motion.div
+            <Ficha
               key={p.id}
               role="button"
               tabIndex={0}
@@ -190,7 +191,7 @@ export function Perfil({ ir, abrir }: { ir: (r: string) => void; abrir: (id: str
                   {pestana === "mias" ? <span className="num vitrina-g">{eur(p.coste)}</span> : <BotonGusta id={p.id} n={(datos.votos || []).filter((v) => v.pedido_id === p.id).length} mio={gustanIds.has(p.id)} puede={!!yoId} />}
                 </div>
               </div>
-            </motion.div>
+            </Ficha>
           ))}
         </motion.div>
       )}

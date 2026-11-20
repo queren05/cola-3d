@@ -5,6 +5,7 @@ import { dominio, duracion, eur, fechaLarga, gramos, hace, num } from "../lib/fo
 import { acumula, aplicarGratis, calcularCoste, deudaDe, gratisRestante } from "../lib/coste";
 import { esMakerWorld, minutosA1mini, perfilInicial } from "../lib/perfiles";
 import { vistaPrevia } from "../lib/vista-previa";
+import { useInclinar } from "../lib/inclinar";
 import { useDatos } from "../lib/store";
 import { ESTADOS, type Estado, type Linea, type Pedido } from "../lib/types";
 import { ICerrar, ICheck, IEnlace, IPapelera, IReloj } from "./Iconos";
@@ -42,6 +43,7 @@ export function Portada({ p, alto, layoutId }: { p: Pedido; alto?: number; layou
 
 export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedido; posicion: number | null; onAbrir: () => void; mio: boolean; resaltar: boolean }) {
   const { datos: datosCola } = useDatos();
+  const inc = useInclinar();
   return (
     <motion.article
       layout
@@ -53,11 +55,14 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
       transition={{ duration: 0.45, ease }}
       whileHover={{ y: -4 }}
       onClick={onAbrir}
+      onPointerMove={inc.onPointerMove}
+      onPointerLeave={inc.onPointerLeave}
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onAbrir())}
       aria-label={`${p.titulo || "Pedido"} de ${p.nombre}`}
-      style={{ ["--estado" as string]: colorEstado(p.estado) }}
+      style={{ ["--estado" as string]: colorEstado(p.estado), ...inc.estilo }}
     >
+      <motion.span className="brillo" style={{ background: inc.brillo }} aria-hidden="true" />
       <div className="tarjeta-img">
         <Portada p={p} layoutId={`img-${p.id}`} />
         {posicion !== null && <span className="turno num">#{posicion}</span>}
@@ -610,19 +615,18 @@ function Comprobar({ p }: { p: Pedido }) {
     <div className={`bloque comprobar ${bien ? "bien" : "mal"}`}>
       <span className="etiqueta">Comprobar con MakerWorld</span>
       <strong className="comprobar-tit">{bien ? "✓ Coincide con el perfil" : "⚠ No coincide con el perfil"}</strong>
-      <div className="comprobar-tabla">
-        <span />
-        <span>Pedido</span>
-        <span>Perfil</span>
-        <span>Gramos por copia</span>
-        <b className={`num${Math.abs(difG) > 1 ? " dif" : ""}`}>{gramos(pedidoG)}</b>
-        <b className="num">{gramos(perfilG)}</b>
-        <span>Tiempo por copia</span>
-        <b className={`num${Math.abs(difMin) > 2 ? " dif" : ""}`}>{duracion(p.minutos)}</b>
-        <b className="num">{duracion(perfilMin)}</b>
-        <span>Colores</span>
-        <b className="num">{p.lineas.filter((l) => l.gramos > 0).length}</b>
-        <b className="num">{perfil.colores.length}</b>
+      <div className="comprobar-cifras">
+        {([
+          ["Gramos", gramos(pedidoG), gramos(perfilG), Math.abs(difG) <= 1],
+          ["Tiempo", duracion(p.minutos) || "—", duracion(perfilMin) || "—", Math.abs(difMin) <= 2],
+          ["Colores", String(p.lineas.filter((l) => l.gramos > 0).length), String(perfil.colores.length), true],
+        ] as [string, string, string, boolean][]).map(([t, ped, per, ok]) => (
+          <div key={t} className={`comp-dato${ok ? "" : " mal"}`}>
+            <span className="etiqueta"><span className={ok ? "ok" : "ko"}>{ok ? "✓" : "✗"}</span>{t}</span>
+            <strong className="num">{ped}</strong>
+            <small>{ok ? (ped === per ? "Igual que el perfil" : `Perfil: ${per}`) : `Perfil: ${per}`}</small>
+          </div>
+        ))}
       </div>
       <span className="comprobar-txt">
         Perfil «{perfil.titulo || "sin nombre"}»{perfil.impresora ? ` · ${perfil.impresora}` : ""}
