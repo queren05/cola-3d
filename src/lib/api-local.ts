@@ -96,7 +96,7 @@ export function apiLocal(): Api {
       d.pedidos.push({
         id, creado: ahora, actualizado: ahora, nombre, url: p.url, titulo: p.titulo.slice(0, 120), imagen: p.imagen.slice(0, 600),
         lineas, minutos, copias, notas: p.notas.slice(0, 600), estado: "pendiente", pagado: false, coste: det.total, coste_detalle: det,
-        historial: [{ estado: "pendiente", fecha: ahora }], descontado: false,
+        historial: [{ estado: "pendiente", fecha: ahora }], descontado: false, peticion: lineas.filter((l) => l.gramos > 0).length > 4,
       });
       d.tokens[id] = token;
       guardar(d);
@@ -133,6 +133,7 @@ export function apiLocal(): Api {
       if (c.imagen !== undefined) p.imagen = c.imagen.slice(0, 600);
       if (c.notas !== undefined) p.notas = c.notas.slice(0, 600);
       if (c.pagado !== undefined) p.pagado = c.pagado;
+      if (c.peticion !== undefined) p.peticion = c.peticion;
       if (c.fotos !== undefined) p.fotos = c.fotos.slice(0, 12);
       if (c.prioridad !== undefined) p.prioridad = Math.max(0, Math.round(c.prioridad));
       if (cambiaCantidad) {

@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ICerrar, ICheck, IMas } from "../components/Iconos";
 import { Bobina, EtiquetaColor, Muestra, Numero, ClaveInput } from "../components/Piezas";
-import { aplicarGratis, calcularCoste, gratisRestante } from "../lib/coste";
+import { aplicarGratis, calcularCoste, gratisRestante, juntarLineas } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
 import { alternativas, esA1mini, esMakerWorld, lineasDePerfil, tieneMaterial, type Falta, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
@@ -84,7 +84,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   }, [url, api]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const lineasCalc: Linea[] = lineas.map(({ key, txt, falta, cambio, ...l }) => ({ ...l, gramos: num(txt) }));
+  // si varios colores acaban en el mismo rollo (p. ej. «pues todo en gris»), sus gramos se juntan en una sola línea
+  const lineasCalc: Linea[] = juntarLineas(lineas.map(({ key, txt, falta, cambio, ...l }) => ({ ...l, gramos: num(txt) })));
   // colores que no hay en el taller y aún no tienen solución
   const sinResolver = filamentos.length > 0 ? lineas.filter((l) => !l.filamento_id && !l.cambio && num(l.txt) > 0) : [];
   const minutos = Math.round(num(horas) * 60 + num(mins));
@@ -102,6 +103,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   const sinPerfil = mw && perfiles.length > 0 && !perfiles.some((p) => p.a1mini);
   const perfilMalo = perfiles.find((p) => p.id === perfilId && !p.a1mini);
   const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && det.gramos > 0 && sinResolver.length === 0;
+  const nColores = lineasCalc.filter((l) => l.gramos > 0).length;
+  const esPeticion = nColores > 4;
   const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
 
 
@@ -293,6 +296,14 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
               </div>
             )}
 
+            <AnimatePresence initial={false}>
+              {esPeticion && (
+                <motion.div key="peticion" className="peticion-aviso" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                  <strong>Este modelo lleva {nColores} colores</strong>
+                  <span>La impresora pone 4 colores a la vez. Puedes enviarlo como petición y el taller te dirá si se puede hacer; mientras tanto no hace falta pagar.</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="lineas">
               <AnimatePresence initial={false}>
                 {lineas.map((l) => (
@@ -424,7 +435,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                 {hecho ? (
                   <motion.span key="ok" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="boton-ok"><ICheck width={20} height={20} /> En la cola</motion.span>
                 ) : (
-                  <motion.span key="txt" exit={{ opacity: 0, y: -6 }}>{enviando ? "Enviando…" : falta || "Añadir a la cola"}</motion.span>
+                  <motion.span key="txt" exit={{ opacity: 0, y: -6 }}>{enviando ? "Enviando…" : falta || (esPeticion ? "Enviar como petición" : "Añadir a la cola")}</motion.span>
                 )}
               </AnimatePresence>
             </motion.button>

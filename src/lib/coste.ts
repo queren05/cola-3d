@@ -9,7 +9,7 @@ export function calcularCoste(lineas: Linea[], minutos: number, copias: number, 
   let fil = 0;
   let gtot = 0;
   let colores = 0;
-  const out = lineas.map((l) => {
+  const out = juntarLineas(lineas).map((l) => {
     const f = l.filamento_id ? fils.find((x) => x.id === l.filamento_id) : undefined;
     const precio = f?.precio ?? a.precio_defecto;
     const peso = f?.peso || a.peso_defecto;
@@ -42,4 +42,16 @@ export function aplicarGratis(d: CosteDetalle, restante: number): CosteDetalle {
   const libre = Math.min(d.gramos, Math.max(0, restante));
   const descuento = d.gramos > 0 && libre > 0 ? r2(((d.filamento + d.merma) * libre) / d.gramos) : 0;
   return { ...d, gratis_g: Math.round(libre * 10) / 10, descuento, total: Math.max(0, r2(d.total - descuento)) };
+}
+
+/** junta las líneas que van al mismo rollo (o, sin rollo, al mismo color): cuenta como un solo color */
+export function juntarLineas(ls: Linea[]): Linea[] {
+  const m = new Map<string, Linea>();
+  for (const l of ls) {
+    const k = l.filamento_id ? "f:" + l.filamento_id : "c:" + (l.color || "").toLowerCase();
+    const ya = m.get(k);
+    if (ya) ya.gramos = Math.round((ya.gramos + l.gramos) * 10) / 10;
+    else m.set(k, { ...l });
+  }
+  return [...m.values()];
 }

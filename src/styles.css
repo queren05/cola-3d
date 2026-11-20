@@ -806,3 +806,11 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .buscador:focus { border-color: var(--hot); box-shadow: 0 0 0 4px color-mix(in srgb, var(--hot) 15%, transparent); }
 .v-chips select.v-chip { width: auto; flex: 0 1 auto; min-width: 0; }
 .vitrina-foto .portada { min-height: 120px; }
+
+/* peticiones (más de 4 colores) */
+.peticion-chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; white-space: nowrap;
+  color: var(--st-entregado); background: color-mix(in srgb, var(--st-entregado) 14%, transparent); }
+.peticion-aviso { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 14px 16px; border-radius: 16px; overflow: hidden;
+  background: color-mix(in srgb, var(--st-entregado) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--st-entregado) 35%, transparent); font-size: 14px; line-height: 1.4; }
+.peticion-aviso strong { color: var(--st-entregado); }
+.peticion-aviso .boton { margin-top: 4px; }

@@ -19,7 +19,7 @@ const FILTROS: { id: Filtro; label: string }[] = [
 export function ordenCola(ps: Pedido[]) {
   const imp = ps.filter((p) => p.estado === "imprimiendo").sort((a, b) => a.creado.localeCompare(b.creado));
   // pendientes: primero los ya pagados (listos para imprimir), luego por fecha de llegada
-  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => (b.prioridad || 0) - (a.prioridad || 0) || Number(b.pagado) - Number(a.pagado) || a.creado.localeCompare(b.creado));
+  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => Number(!!a.peticion) - Number(!!b.peticion) || (b.prioridad || 0) - (a.prioridad || 0) || Number(b.pagado) - Number(a.pagado) || a.creado.localeCompare(b.creado));
   return [...imp, ...pen];
 }
 
@@ -47,7 +47,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
   const cola = useMemo(() => ordenCola(datos.pedidos), [datos.pedidos]);
   const posiciones = useMemo(() => {
     const m = new Map<string, number>();
-    cola.filter((p) => p.estado === "pendiente").forEach((p, i) => m.set(p.id, i + 1));
+    cola.filter((p) => p.estado === "pendiente" && !p.peticion).forEach((p, i) => m.set(p.id, i + 1));
     return m;
   }, [cola]);
 

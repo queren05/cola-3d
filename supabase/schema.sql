@@ -71,6 +71,8 @@ create table if not exists public.pedidos (
 );
 alter table public.pedidos add column if not exists prioridad int not null default 0;
 alter table public.pedidos add column if not exists fotos jsonb not null default '[]';
+-- más de 4 colores no caben a la vez en la impresora: llega como petición y el taller decide
+alter table public.pedidos add column if not exists peticion boolean not null default false;
 
 -- quien pide guarda un código para poder cancelar su pedido sin cuenta
 create table if not exists public.pedido_tokens (
@@ -98,13 +100,14 @@ grant select on public.ajustes, public.filamentos, public.pedidos to anon, authe
 -- ---------- utilidades internas ----------
 create or replace function public._lineas(p jsonb) returns jsonb
 language sql immutable set search_path = public, extensions as $$
-  select coalesce(jsonb_agg(jsonb_build_object(
-    'filamento_id', nullif(e->>'filamento_id', ''),
-    'nombre', left(coalesce(e->>'nombre', ''), 40),
-    'color', left(coalesce(e->>'color', ''), 9),
-    'gramos', least(5000, greatest(0, coalesce((e->>'gramos')::numeric, 0)))
-  )), '[]'::jsonb)
-  from (select e from jsonb_array_elements(coalesce(p, '[]'::jsonb)) as t(e) limit 16) s;
+  -- las líneas que van al mismo rollo (o, sin rollo, al mismo color) se juntan: cuentan como un solo color
+  select coalesce(jsonb_agg(jsonb_build_object('filamento_id', fid, 'nombre', nombre, 'color', color, 'gramos', least(5000, gramos)) order by orden), '[]'::jsonb)
+  from (
+    select min(nullif(e->>'filamento_id', '')) fid, min(left(coalesce(e->>'nombre', ''), 40)) nombre, min(left(coalesce(e->>'color', ''), 9)) color,
+      sum(greatest(0, coalesce((e->>'gramos')::numeric, 0))) gramos, min(n) orden
+    from (select e, n from jsonb_array_elements(coalesce(p, '[]'::jsonb)) with ordinality as t(e, n) limit 16) s
+    group by coalesce(nullif(e->>'filamento_id', ''), 'c:' || lower(coalesce(e->>'color', '')))
+  ) x;
 $$;
 
 -- mismo cálculo que src/lib/coste.ts
@@ -210,6 +213,7 @@ declare
   v_titulo text := left(coalesce(p->>'titulo', ''), 120);
   v_imagen text := left(coalesce(p->>'imagen', ''), 600);
   v_src public.pedidos;
+  v_colores int;
   v_det jsonb; v_id uuid; v_tok text := encode(gen_random_bytes(18), 'hex');
 begin
   if v_uid is not null then
@@ -228,9 +232,10 @@ begin
   v_det := public._coste(v_lineas, v_min, v_cop);
   if (v_det->>'gramos')::numeric <= 0 and v_src.id is null then raise exception 'Faltan los gramos'; end if;
   v_det := public._aplicar_gratis(v_det, public._gratis_restante(v_uid, v_nombre, null));
-  insert into public.pedidos (nombre, user_id, url, titulo, imagen, lineas, minutos, copias, notas, coste, coste_detalle, historial)
+  select count(*) into v_colores from jsonb_array_elements(v_lineas) e where coalesce((e->>'gramos')::numeric, 0) > 0;
+  insert into public.pedidos (nombre, user_id, url, titulo, imagen, lineas, minutos, copias, notas, coste, coste_detalle, historial, peticion)
   values (v_nombre, v_uid, v_url, v_titulo, v_imagen, v_lineas, v_min, v_cop,
-    left(coalesce(p->>'notas', ''), 600), (v_det->>'total')::numeric, v_det, jsonb_build_array(jsonb_build_object('estado', 'pendiente', 'fecha', now())))
+    left(coalesce(p->>'notas', ''), 600), (v_det->>'total')::numeric, v_det, jsonb_build_array(jsonb_build_object('estado', 'pendiente', 'fecha', now())), v_colores > 4)
   returning id into v_id;
   insert into public.pedido_tokens values (v_id, v_tok);
   return jsonb_build_object('id', v_id, 'token', v_tok);
@@ -281,6 +286,7 @@ begin
   if p ? 'fotos' and jsonb_typeof(p->'fotos') = 'array' then
     r.fotos := coalesce((select jsonb_agg(left(x, 600)) from (select jsonb_array_elements_text(p->'fotos') x limit 12) t where x like 'https://%'), '[]'::jsonb);
   end if;
+  if p ? 'peticion' then r.peticion := (p->>'peticion')::boolean; end if;
   if p ? 'prioridad' then r.prioridad := greatest(0, (p->>'prioridad')::int); end if;
   if cambia then
     if coalesce((r.coste_detalle->>'taller')::boolean, false) then
@@ -306,7 +312,7 @@ begin
   end if;
   update public.pedidos set lineas = r.lineas, copias = r.copias, minutos = r.minutos, titulo = r.titulo, imagen = r.imagen,
     notas = r.notas, pagado = r.pagado, coste = r.coste, coste_detalle = r.coste_detalle, estado = r.estado,
-    historial = r.historial, descontado = r.descontado, prioridad = r.prioridad, fotos = r.fotos, actualizado = now()
+    historial = r.historial, descontado = r.descontado, prioridad = r.prioridad, fotos = r.fotos, peticion = r.peticion, actualizado = now()
   where id = p_id;
 end $$;
 
