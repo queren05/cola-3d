@@ -127,6 +127,8 @@ export interface NuevaPieza {
   titulo: string;
   /** para quién es (vacío = el taller) */
   nombre: string;
+  /** su cuenta, si tiene */
+  user_id?: string | null;
   url: string;
   lineas: Linea[];
   minutos: number;

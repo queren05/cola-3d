@@ -310,17 +310,22 @@ declare
   v_estado text := case when p->>'estado' = 'entregado' then 'entregado' else 'impreso' end;
   v_url text := left(trim(coalesce(p->>'url', '')), 500);
   v_g numeric;
-  v_det jsonb; v_id uuid; v_fotos jsonb;
+  v_det jsonb; v_id uuid; v_fotos jsonb; v_uid uuid;
 begin
   perform public._exigir_admin(p_clave);
   if v_titulo = '' then raise exception 'Ponle un nombre a la pieza'; end if;
+  -- si es para alguien con cuenta, la pieza queda en su cuenta
+  if nullif(p->>'user_id', '') is not null then
+    select u.id, coalesce(nullif(v_nombre, ''), nullif(left(trim(u.raw_user_meta_data->>'nombre'), 40), ''), split_part(u.email, '@', 1))
+      into v_uid, v_nombre from auth.users u where u.id::text = p->>'user_id';
+  end if;
   if v_nombre = '' then v_nombre := 'Taller'; end if;
   if v_url !~* '^https?://' then v_url := ''; end if;
   v_fotos := coalesce((select jsonb_agg(left(x, 600)) from (select jsonb_array_elements_text(coalesce(p->'fotos', '[]'::jsonb)) x limit 12) t where x like 'https://%'), '[]'::jsonb);
   select coalesce(sum((e->>'gramos')::numeric), 0) * v_cop into v_g from jsonb_array_elements(v_lineas) e;
   v_det := jsonb_build_object('filamento', 0, 'merma', 0, 'merma_pct', 0, 'luz', 0, 'gramos', v_g, 'total', 0, 'lineas', '[]'::jsonb, 'taller', true);
-  insert into public.pedidos (nombre, url, titulo, imagen, lineas, minutos, copias, notas, estado, pagado, coste, coste_detalle, historial, descontado, fotos)
-  values (v_nombre, v_url, v_titulo, '', v_lineas, v_min, v_cop, left(coalesce(p->>'notas', ''), 600), v_estado, true, 0, v_det,
+  insert into public.pedidos (nombre, user_id, url, titulo, imagen, lineas, minutos, copias, notas, estado, pagado, coste, coste_detalle, historial, descontado, fotos)
+  values (v_nombre, v_uid, v_url, v_titulo, '', v_lineas, v_min, v_cop, left(coalesce(p->>'notas', ''), 600), v_estado, true, 0, v_det,
     jsonb_build_array(jsonb_build_object('estado', v_estado, 'fecha', now())), true, v_fotos)
   returning id into v_id;
   -- lo gastado sale de los rollos

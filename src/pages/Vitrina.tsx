@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IVitrina } from "../components/Iconos";
 import { Portada, reducir } from "../components/Pedido";
@@ -7,7 +7,7 @@ import { ICerrar } from "../components/Iconos";
 import { Avatar, Muestra, Numero, Vacio } from "../components/Piezas";
 import { clave as claveNombre, gramos, hace, n1, num } from "../lib/formato";
 import { useDatos } from "../lib/store";
-import type { Pedido } from "../lib/types";
+import type { Cuenta, Pedido } from "../lib/types";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -107,6 +107,11 @@ function NuevaPiezaForm({ onCerrar, onHecha }: { onCerrar: () => void; onHecha: 
   const { api, clave, datos, sesion, aviso, recargar } = useDatos();
   const [titulo, setTitulo] = useState("");
   const [para, setPara] = useState(sesion?.nombre || "");
+  const [paraId, setParaId] = useState<string | null>(sesion?.id || null);
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+  useEffect(() => {
+    if (clave !== null) api.adminCuentas?.(clave).then(setCuentas).catch(() => {});
+  }, [api, clave]);
   const [fotos, setFotos] = useState<{ file: File; url: string }[]>([]);
   const [filamento, setFilamento] = useState("");
   const [g, setG] = useState("");
@@ -114,11 +119,19 @@ function NuevaPiezaForm({ onCerrar, onHecha }: { onCerrar: () => void; onHecha: 
   const [enlace, setEnlace] = useState("");
   const [notas, setNotas] = useState("");
   const [ocupado, setOcupado] = useState("");
-  const nombres = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const p of datos.pedidos) m.set(claveNombre(p.nombre), p.nombre);
-    return [...m.values()].sort((a, b) => a.localeCompare(b, "es"));
-  }, [datos.pedidos]);
+  /** personas con cuenta y, detrás, los nombres de pedidos hechos sin cuenta */
+  const personas = useMemo(() => {
+    const out: Persona[] = cuentas.map((c) => ({ nombre: c.nombre, email: c.email, id: c.id }));
+    const vistos = new Set(out.map((x) => claveNombre(x.nombre)));
+    for (const p of datos.pedidos) {
+      const k = claveNombre(p.nombre);
+      if (!p.user_id && !vistos.has(k) && k !== "taller") {
+        vistos.add(k);
+        out.push({ nombre: p.nombre, email: "", id: null });
+      }
+    }
+    return out;
+  }, [cuentas, datos.pedidos]);
   const rollos = datos.filamentos.filter((f) => f.activo);
 
   useEffect(() => {
@@ -151,7 +164,7 @@ function NuevaPiezaForm({ onCerrar, onHecha }: { onCerrar: () => void; onHecha: 
       setOcupado("Guardando…");
       const f = rollos.find((x) => x.id === filamento);
       const id = await api.adminCrearPieza(clave, {
-        titulo: titulo.trim(), nombre: para.trim(), url: enlace.trim(), notas: notas.trim(), copias: 1, minutos: 0,
+        titulo: titulo.trim(), nombre: para.trim(), user_id: paraId, url: enlace.trim(), notas: notas.trim(), copias: 1, minutos: 0,
         estado: entregado ? "entregado" : "impreso", fotos: urls,
         lineas: f && num(g) > 0 ? [{ filamento_id: f.id, nombre: f.nombre, color: f.color, gramos: num(g) }] : [],
       });
@@ -204,11 +217,10 @@ function NuevaPiezaForm({ onCerrar, onHecha }: { onCerrar: () => void; onHecha: 
           <span>Qué es</span>
           <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Jarrón espiral" maxLength={120} required autoFocus />
         </label>
-        <label className="campo">
+        <div className="campo">
           <span>Para quién</span>
-          <input value={para} onChange={(e) => setPara(e.target.value)} placeholder="Taller" maxLength={40} list="np-nombres" />
-          <datalist id="np-nombres">{nombres.map((n) => <option key={n} value={n} />)}</datalist>
-        </label>
+          <ElegirPersona personas={personas} nombre={para} id={paraId} onCambio={(n, id) => { setPara(n); setParaId(id); }} />
+        </div>
         {rollos.length > 0 && (
           <div className="np-fila">
             <label className="campo">
@@ -240,5 +252,91 @@ function NuevaPiezaForm({ onCerrar, onHecha }: { onCerrar: () => void; onHecha: 
         <button className="boton primario ancho grande" disabled={!titulo.trim() || !!ocupado}>{ocupado || "Añadir a la vitrina"}</button>
       </motion.form>
     </motion.div>
+  );
+}
+
+interface Persona {
+  nombre: string;
+  email: string;
+  id: string | null;
+}
+
+/** desplegable propio con las personas que tienen cuenta (se puede escribir otro nombre) */
+function ElegirPersona({ personas, nombre, id, onCambio }: { personas: Persona[]; nombre: string; id: string | null; onCambio: (nombre: string, id: string | null) => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const [q, setQ] = useState("");
+  const [activo, setActivo] = useState(0);
+  const caja = useRef<HTMLDivElement>(null);
+  const filtro = claveNombre(q);
+  const lista = personas.filter((p) => !filtro || claveNombre(p.nombre).includes(filtro) || p.email.toLowerCase().includes(q.toLowerCase()));
+  const opciones: Persona[] = [{ nombre: "Taller", email: "", id: null }, ...lista];
+  if (q.trim() && !lista.some((p) => claveNombre(p.nombre) === filtro)) opciones.push({ nombre: q.trim(), email: "nuevo", id: null });
+
+  useEffect(() => {
+    if (!abierto) return;
+    const f = (e: MouseEvent) => caja.current && !caja.current.contains(e.target as Node) && setAbierto(false);
+    document.addEventListener("mousedown", f);
+    return () => document.removeEventListener("mousedown", f);
+  }, [abierto]);
+
+  function elegir(p: Persona) {
+    onCambio(p.nombre === "Taller" && !p.id ? "" : p.nombre, p.id);
+    setAbierto(false);
+    setQ("");
+  }
+  const actual = personas.find((p) => p.id && p.id === id);
+
+  return (
+    <div className="persona-sel" ref={caja}>
+      <button type="button" className={`persona-btn${abierto ? " abierto" : ""}`} onClick={() => { setAbierto((v) => !v); setActivo(0); }} aria-haspopup="listbox" aria-expanded={abierto}>
+        <Avatar nombre={nombre || "Taller"} size={28} />
+        <span className="persona-btn-txt">
+          <strong>{nombre || "Taller"}</strong>
+          <small>{actual ? actual.email : nombre ? "Sin cuenta" : "Lo ha hecho el taller"}</small>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="persona-flecha"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      <AnimatePresence>
+        {abierto && (
+          <motion.div className="persona-pop" initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.98 }} transition={{ duration: 0.16 }}>
+            <input
+              className="persona-buscar"
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setActivo(0); }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") { e.preventDefault(); setActivo((a) => Math.min(opciones.length - 1, a + 1)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setActivo((a) => Math.max(0, a - 1)); }
+                else if (e.key === "Enter") { e.preventDefault(); opciones[activo] && elegir(opciones[activo]); }
+                else if (e.key === "Escape") { e.stopPropagation(); setAbierto(false); }
+              }}
+              placeholder="Buscar o escribir un nombre"
+              autoComplete="off"
+              autoFocus
+              name="buscar-persona-cola3d"
+            />
+            <div className="persona-lista" role="listbox">
+              {opciones.map((p, i) => (
+                <button
+                  type="button"
+                  key={(p.id || "") + p.nombre + i}
+                  role="option"
+                  aria-selected={(p.id ? p.id === id : p.nombre === (nombre || "Taller"))}
+                  className={`persona-op${i === activo ? " activo" : ""}`}
+                  onMouseEnter={() => setActivo(i)}
+                  onClick={() => elegir(p)}
+                >
+                  <Avatar nombre={p.nombre} size={30} />
+                  <span className="persona-btn-txt">
+                    <strong>{p.email === "nuevo" ? `Usar «${p.nombre}»` : p.nombre}</strong>
+                    <small>{p.email === "nuevo" ? "Sin cuenta" : p.email || (p.nombre === "Taller" && !p.id ? "Lo ha hecho el taller" : "Sin cuenta")}</small>
+                  </span>
+                  {(p.id ? p.id === id : p.email !== "nuevo" && p.nombre === (nombre || "Taller")) && <span className="persona-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
