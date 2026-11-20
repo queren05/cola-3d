@@ -45,7 +45,7 @@ function nombreColor(hex: string): string {
 }
 
 export function Pedir({ ir }: { ir: (r: string) => void }) {
-  const { api, datos, yo, setYo, sesion, guardarToken, aviso, setResaltado } = useDatos();
+  const { api, datos, yo, setYo, sesion, guardarToken, aviso, setResaltado, esAdmin } = useDatos();
   const filamentos = datos.filamentos.filter((f) => f.activo);
   const [nombre, setNombre] = useState(yo);
   const [urlTxt, setUrlTxt] = useState("");
@@ -96,7 +96,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   const minutos = Math.round(num(horas) * 60 + num(mins));
   const nombreFinal = (sesion?.nombre || nombre).trim();
   const gratisTotal = datos.ajustes.gratis_g ?? 50;
-  const gratis = gratisRestante(datos.pedidos, datos.ajustes, sesion?.id, nombreFinal);
+  // la cuenta del taller no tiene regalo: así ves los precios reales
+  const gratis = esAdmin ? 0 : gratisRestante(datos.pedidos, datos.ajustes, sesion?.id, nombreFinal);
   const det = useMemo(
     () => aplicarGratis(calcularCoste(lineasCalc, minutos, copias, datos.filamentos, datos.ajustes), gratis),
     [JSON.stringify(lineasCalc), minutos, copias, datos, gratis], // eslint-disable-line react-hooks/exhaustive-deps

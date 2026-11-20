@@ -15,7 +15,7 @@ type Pestana = "mias" | "gustan" | "guardados";
 
 /** tu perfil: foto, nombre, lo que llevas y tus piezas, me gusta y listas de guardados */
 export function Perfil({ ir, abrir }: { ir: (r: string) => void; abrir: (id: string) => void }) {
-  const { api, datos, sesion, setSesion, esMio, aviso, recargar } = useDatos();
+  const { api, datos, sesion, setSesion, esMio, aviso, recargar, esAdmin: esAdminPerfil } = useDatos();
   const [pestana, setPestana] = useState<Pestana>("mias");
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(sesion?.nombre || "");
@@ -134,7 +134,7 @@ export function Perfil({ ir, abrir }: { ir: (r: string) => void; abrir: (id: str
         <div><span className="etiqueta">Debes</span><span className={`cifra${vivos.some((p) => !p.pagado && !p.peticion) ? " debe" : ""}`}><Numero valor={vivos.filter((p) => !p.pagado && !p.peticion).reduce((t, p) => t + p.coste, 0)} /></span></div>
         <div><span className="etiqueta">Impreso</span><span className="cifra"><Numero valor={vivos.filter((p) => p.estado === "impreso" || p.estado === "entregado").reduce((t, p) => t + (p.coste_detalle?.gramos || 0), 0)} formato={gramos} /></span></div>
         <div><span className="etiqueta">Me gusta recibidos</span><span className="cifra"><Numero valor={recibidos} formato={(v) => String(Math.round(v))} /></span></div>
-        <div><span className="etiqueta">Gramos de regalo</span><span className="cifra"><Numero valor={gratisRestante(datos.pedidos, datos.ajustes, sesion?.id, miNombre)} formato={gramos} /></span></div>
+        <div><span className="etiqueta">Gramos de regalo</span><span className="cifra"><Numero valor={(esAdminPerfil ? 0 : gratisRestante(datos.pedidos, datos.ajustes, sesion?.id, miNombre))} formato={gramos} /></span></div>
       </div>
 
       <div className="filtros" role="tablist">

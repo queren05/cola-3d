@@ -203,7 +203,9 @@ end $$;
 -- gramos gratis que le quedan a una persona (su cuenta o, sin cuenta, su nombre); lo cancelado no cuenta
 create or replace function public._gratis_restante(p_uid uuid, p_nombre text, p_excluir uuid) returns numeric
 language sql stable security definer set search_path = public, extensions as $$
-  select greatest(0, coalesce((select gratis_g from public.ajustes where id = 1), 50) - coalesce(sum((coste_detalle->>'gratis_g')::numeric), 0))
+  -- la cuenta del taller no tiene regalo: así ve los precios reales
+  select case when p_uid is not null and exists (select 1 from public.admins where user_id = p_uid) then 0 else
+    greatest(0, coalesce((select gratis_g from public.ajustes where id = 1), 50) - coalesce(sum((coste_detalle->>'gratis_g')::numeric), 0)) end
   from public.pedidos
   where estado <> 'cancelado' and id is distinct from p_excluir
     and ((p_uid is not null and user_id = p_uid) or (p_uid is null and user_id is null and lower(trim(nombre)) = lower(trim(p_nombre))));
