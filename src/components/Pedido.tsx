@@ -220,6 +220,11 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                       {p.pagado ? "Quitar pagado" : "Marcar pagado"}
                     </button>
                   )}
+                  {!p.pagado && !esTaller(p) && p.estado !== "cancelado" && (
+                    <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { acumulado: !p.acumulado }), p.acumulado ? "Vuelve a pedir el pago" : "Acumulado: se imprime sin esperar al pago")}>
+                      {p.acumulado ? "Quitar acumulado" : "Acumular"}
+                    </button>
+                  )}
                   {p.estado === "pendiente" && (
                     (p.prioridad || 0) > 0 ? (
                       <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { prioridad: 0 }), "Vuelve a su sitio en la cola")}>Quitar prioridad</button>
@@ -372,6 +377,17 @@ function Pago({ p, bizum }: { p: Pedido; bizum: string }) {
   const { aviso, datos } = useDatos();
   const minimo = datos.ajustes.pago_minimo ?? 0.5;
   const deuda = deudaDe(p, datos.pedidos);
+  if (p.acumulado && deuda.total >= minimo) {
+    return (
+      <motion.div className="pago acumula" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, ease }}>
+        <div className="pago-arriba">
+          <span className="etiqueta">Apuntado a tu cuenta</span>
+          <strong className="num">{eur(deuda.total)}</strong>
+        </div>
+        <p>El taller lo imprime sin esperar al pago. Págalo cuando puedas por Bizum{bizum ? <> al <b className="num">{bizum}</b></> : ""} o en mano.</p>
+      </motion.div>
+    );
+  }
   if (deuda.total < minimo) {
     return (
       <motion.div className="pago acumula" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, ease }}>

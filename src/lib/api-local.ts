@@ -134,6 +134,7 @@ export function apiLocal(): Api {
       if (c.notas !== undefined) p.notas = c.notas.slice(0, 600);
       if (c.pagado !== undefined) p.pagado = c.pagado;
       if (c.peticion !== undefined) p.peticion = c.peticion;
+      if (c.acumulado !== undefined) p.acumulado = c.acumulado;
       if (c.fotos !== undefined) p.fotos = c.fotos.slice(0, 12);
       if (c.prioridad !== undefined) p.prioridad = Math.max(0, Math.round(c.prioridad));
       if (cambiaCantidad) {

@@ -74,6 +74,8 @@ alter table public.pedidos add column if not exists prioridad int not null defau
 alter table public.pedidos add column if not exists fotos jsonb not null default '[]';
 -- más de 4 colores no caben a la vez en la impresora: llega como petición y el taller decide
 alter table public.pedidos add column if not exists peticion boolean not null default false;
+-- el taller deja que se imprima sin pagar todavía: se suma a lo que debe esa persona
+alter table public.pedidos add column if not exists acumulado boolean not null default false;
 
 -- quien pide guarda un código para poder cancelar su pedido sin cuenta
 create table if not exists public.pedido_tokens (
@@ -287,6 +289,7 @@ begin
   if p ? 'fotos' and jsonb_typeof(p->'fotos') = 'array' then
     r.fotos := coalesce((select jsonb_agg(left(x, 600)) from (select jsonb_array_elements_text(p->'fotos') x limit 12) t where x like 'https://%'), '[]'::jsonb);
   end if;
+  if p ? 'acumulado' then r.acumulado := (p->>'acumulado')::boolean; end if;
   if p ? 'peticion' then r.peticion := (p->>'peticion')::boolean; end if;
   if p ? 'prioridad' then r.prioridad := greatest(0, (p->>'prioridad')::int); end if;
   if cambia then
@@ -313,7 +316,7 @@ begin
   end if;
   update public.pedidos set lineas = r.lineas, copias = r.copias, minutos = r.minutos, titulo = r.titulo, imagen = r.imagen,
     notas = r.notas, pagado = r.pagado, coste = r.coste, coste_detalle = r.coste_detalle, estado = r.estado,
-    historial = r.historial, descontado = r.descontado, prioridad = r.prioridad, fotos = r.fotos, peticion = r.peticion, actualizado = now()
+    historial = r.historial, descontado = r.descontado, prioridad = r.prioridad, fotos = r.fotos, peticion = r.peticion, acumulado = r.acumulado, actualizado = now()
   where id = p_id;
 end $$;
 

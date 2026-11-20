@@ -67,4 +67,4 @@ export function deudaDe(p: Pedido, pedidos: Pedido[]): { total: number; pedidos:
 }
 
 /** aún no llega al mínimo: no se pide pagar, se acumula y se imprime igual */
-export const acumula = (p: Pedido, pedidos: Pedido[], a: Ajustes) => !p.pagado && deudaDe(p, pedidos).total < (a.pago_minimo ?? 0.5);
+export const acumula = (p: Pedido, pedidos: Pedido[], a: Ajustes) => !p.pagado && (!!p.acumulado || deudaDe(p, pedidos).total < (a.pago_minimo ?? 0.5));

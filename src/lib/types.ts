@@ -112,6 +112,8 @@ export interface Pedido {
   fotos?: string[];
   /** más de 4 colores: llega como petición y el taller decide */
   peticion?: boolean;
+  /** el taller deja imprimirlo sin pagar todavía (se suma a lo que debe) */
+  acumulado?: boolean;
   /** cuenta que hizo el pedido */
   user_id?: string | null;
 }
@@ -153,7 +155,7 @@ export interface NuevoPedido {
   notas: string;
 }
 
-export type CambiosPedido = Partial<Pick<Pedido, "estado" | "pagado" | "lineas" | "minutos" | "copias" | "titulo" | "imagen" | "notas" | "prioridad" | "fotos" | "peticion">>;
+export type CambiosPedido = Partial<Pick<Pedido, "estado" | "pagado" | "lineas" | "minutos" | "copias" | "titulo" | "imagen" | "notas" | "prioridad" | "fotos" | "peticion" | "acumulado">>;
 
 export interface Datos {
   ajustes: Ajustes;
