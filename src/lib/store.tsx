@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { apiLocal } from "./api-local";
 import { apiSupabase } from "./api-supabase";
 import { AJUSTES_DEFECTO } from "./coste";
-import type { Api, Datos, Sesion } from "./types";
+import { clave as claveNombre } from "./formato";
+import type { Api, Datos, Pedido, Sesion } from "./types";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -58,6 +59,8 @@ interface Ctx {
   aviso: (texto: string, tipo?: "ok" | "error") => void;
   // al crear un pedido se resalta en la cola
   resaltado: string | null;
+  /** pedido hecho por ti (tu cuenta, este navegador o tu nombre) */
+  esMio: (p: Pedido) => boolean;
   setResaltado: (id: string | null) => void;
 }
 
@@ -156,6 +159,11 @@ export function Proveedor({ children }: { children: ReactNode }) {
       aviso,
       resaltado,
       setResaltado,
+      esMio: (p: Pedido) => {
+        if (tokens[p.id]) return true;
+        if (sesion) return p.user_id === sesion.id || (!p.user_id && claveNombre(p.nombre) === claveNombre(sesion.nombre));
+        return !!yo && claveNombre(p.nombre) === claveNombre(yo);
+      },
     }),
     [datos, cargado, error, recargar, yo, sesion, tokens, clave, adminCuenta, toasts, aviso, resaltado, recuperando],
   );

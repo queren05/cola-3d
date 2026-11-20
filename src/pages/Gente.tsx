@@ -18,6 +18,8 @@ export interface Persona {
   gastado: number;
   enCola: number;
   debe: number;
+  /** lo que ha pagado en total */
+  pagado: number;
   gramos: number;
   ultimo: string;
 }
@@ -26,13 +28,14 @@ export function agruparPersonas(ps: Pedido[]): Persona[] {
   const m = new Map<string, Persona>();
   for (const p of ps) {
     const k = clave(p.nombre);
-    const x = m.get(k) ?? { clave: k, nombre: p.nombre, pedidos: [], gastado: 0, enCola: 0, debe: 0, gramos: 0, ultimo: "" };
+    const x = m.get(k) ?? { clave: k, nombre: p.nombre, pedidos: [], gastado: 0, enCola: 0, debe: 0, pagado: 0, gramos: 0, ultimo: "" };
     x.pedidos.push(p);
     if (hechos(p)) {
       x.gastado += p.coste;
       x.gramos += p.coste_detalle?.gramos || 0;
-      if (!p.pagado) x.debe += p.coste;
     }
+    if (!p.pagado && p.estado !== "cancelado") x.debe += p.coste;
+    if (p.pagado && p.estado !== "cancelado") x.pagado += p.coste;
     if (vivos(p)) x.enCola += p.coste;
     if (p.creado > x.ultimo) {
       x.ultimo = p.creado;
@@ -44,7 +47,11 @@ export function agruparPersonas(ps: Pedido[]): Persona[] {
 }
 
 export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string) => void; abrir: (id: string) => void }) {
-  const { datos, esAdmin } = useDatos();
+  const { datos, esAdmin, esMio } = useDatos();
+  const mios = datos.pedidos.filter((p) => esMio(p) && p.estado !== "cancelado");
+  const yoPagado = mios.filter((p) => p.pagado).reduce((t, p) => t + p.coste, 0);
+  const yoDebo = mios.filter((p) => !p.pagado).reduce((t, p) => t + p.coste, 0);
+  const yoCola = mios.filter(vivos).reduce((t, p) => t + p.coste, 0);
   const gente = useMemo(() => agruparPersonas(datos.pedidos), [datos.pedidos]);
   const sel = persona ? gente.find((g) => g.clave === persona) : undefined;
   const max = Math.max(1, ...gente.map((g) => g.gastado + g.enCola));
@@ -63,7 +70,7 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
               </div>
             </header>
             <div className="cifras">
-              <div><span className="etiqueta">Gastado</span><span className="cifra"><Numero valor={sel.gastado} /></span></div>
+              <div><span className="etiqueta">Ha pagado</span><span className="cifra"><Numero valor={sel.pagado} /></span></div>
               <div><span className="etiqueta">En cola</span><span className="cifra"><Numero valor={sel.enCola} /></span></div>
               <div><span className="etiqueta">Pendiente de pagar</span><span className={`cifra${sel.debe > 0 ? " debe" : ""}`}><Numero valor={sel.debe} /></span></div>
             </div>
@@ -94,11 +101,18 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
               <Vacio titulo="Aún no ha pedido nadie" icono={<IGente width={48} height={48} />} />
             ) : (
               <>
-                {esAdmin && (
+                {esAdmin ? (
                   <div className="cifras">
-                    <div><span className="etiqueta">Impreso en total</span><span className="cifra"><Numero valor={gente.reduce((t, g) => t + g.gastado, 0)} /></span></div>
+                    <div><span className="etiqueta">Cobrado</span><span className="cifra"><Numero valor={gente.reduce((t, g) => t + g.pagado, 0)} /></span></div>
                     <div><span className="etiqueta">Te deben</span><span className="cifra debe"><Numero valor={gente.reduce((t, g) => t + g.debe, 0)} /></span></div>
                     <div><span className="etiqueta">Filamento gastado</span><span className="cifra"><Numero valor={gente.reduce((t, g) => t + g.gramos, 0)} formato={gramos} /></span></div>
+                  </div>
+                )
+                 : mios.length > 0 && (
+                  <div className="cifras">
+                    <div><span className="etiqueta">Has pagado</span><span className="cifra"><Numero valor={yoPagado} /></span></div>
+                    <div><span className="etiqueta">Debes</span><span className={`cifra${yoDebo > 0 ? " debe" : ""}`}><Numero valor={yoDebo} /></span></div>
+                    <div><span className="etiqueta">En cola</span><span className="cifra"><Numero valor={yoCola} /></span></div>
                   </div>
                 )}
                 <div className="gente">
@@ -112,7 +126,7 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
                       </div>
                       <div className="persona-cifras">
                         <span className="num">{eur(g.gastado)}</span>
-                        {g.debe > 0 ? <small className="sin-pagar">debe {eur(g.debe)}</small> : g.enCola > 0 ? <small>{eur(g.enCola)} en cola</small> : null}
+                        {g.debe > 0 && (esAdmin || g.pedidos.some(esMio)) ? <small className="sin-pagar">{esAdmin ? "debe" : "debes"} {eur(g.debe)}</small> : g.enCola > 0 ? <small>{eur(g.enCola)} en cola</small> : null}
                       </div>
                     </motion.button>
                   ))}

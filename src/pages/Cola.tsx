@@ -24,7 +24,7 @@ export function ordenCola(ps: Pedido[]) {
 }
 
 export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: string) => void }) {
-  const { datos, cargado, yo, tokens, resaltado, setResaltado, error } = useDatos();
+  const { datos, cargado, yo, tokens, resaltado, setResaltado, error, esMio } = useDatos();
   const [filtro, setFiltro] = useState<Filtro>(() => {
     try {
       return (sessionStorage.getItem("cola3d-filtro") as Filtro) || "cola";
@@ -50,7 +50,6 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
     cola.filter((p) => p.estado === "pendiente").forEach((p, i) => m.set(p.id, i + 1));
     return m;
   }, [cola]);
-  const esMio = (p: Pedido) => !!tokens[p.id] || (!!yo && clave(p.nombre) === clave(yo));
 
   const lista = useMemo(() => {
     const porFecha = (a: Pedido, b: Pedido) => b.actualizado.localeCompare(a.actualizado);

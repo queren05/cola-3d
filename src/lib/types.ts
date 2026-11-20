@@ -103,6 +103,8 @@ export interface Pedido {
   prioridad?: number;
   /** fotos de cómo ha quedado (las sube el taller) */
   fotos?: string[];
+  /** cuenta que hizo el pedido */
+  user_id?: string | null;
 }
 
 export interface NuevoPedido {
