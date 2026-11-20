@@ -150,6 +150,26 @@ export function apiLocal(): Api {
       }
       guardar(d);
     },
+    async adminCrearPieza(clave, n) {
+      const d = await admin(clave);
+      if (!n.titulo.trim()) throw new Error("Ponle un nombre a la pieza");
+      const lineas = limpiarLineas(n.lineas);
+      const copias = Math.min(50, Math.max(1, Math.round(n.copias || 1)));
+      const g = lineas.reduce((t, l) => t + l.gramos, 0) * copias;
+      const ahora = new Date().toISOString();
+      const id = uid();
+      const p: Pedido = {
+        id, creado: ahora, actualizado: ahora, nombre: n.nombre.trim() || "Taller", url: /^https?:\/\//.test(n.url) ? n.url : "", titulo: n.titulo.trim().slice(0, 120), imagen: "",
+        lineas, minutos: Math.max(0, Math.round(n.minutos || 0)), copias, notas: n.notas.slice(0, 600), estado: n.estado, pagado: true, coste: 0,
+        coste_detalle: { filamento: 0, merma: 0, merma_pct: 0, luz: 0, gramos: g, total: 0, lineas: [], taller: true } as Pedido["coste_detalle"],
+        historial: [{ estado: n.estado, fecha: ahora }], descontado: false, fotos: n.fotos.slice(0, 12),
+      };
+      d.pedidos.push(p);
+      stock(d, p, -1);
+      p.descontado = true;
+      guardar(d);
+      return id;
+    },
     async adminBorrarPedido(clave, id) {
       const d = await admin(clave);
       d.pedidos = d.pedidos.filter((x) => x.id !== id);

@@ -253,7 +253,7 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare
   r public.pedidos;
   cambia boolean := (p ? 'lineas') or (p ? 'copias') or (p ? 'minutos');
-  hecho boolean; v_estado text; v_det jsonb;
+  hecho boolean; v_estado text; v_det jsonb; v_g numeric;
 begin
   perform public._exigir_admin(p_clave);
   select * into r from public.pedidos where id = p_id for update;
@@ -271,7 +271,13 @@ begin
   end if;
   if p ? 'prioridad' then r.prioridad := greatest(0, (p->>'prioridad')::int); end if;
   if cambia then
-    v_det := public._aplicar_gratis(public._coste(r.lineas, r.minutos, r.copias), public._gratis_restante(r.user_id, r.nombre, r.id));
+    if coalesce((r.coste_detalle->>'taller')::boolean, false) then
+      -- pieza del taller: no se cobra, solo cambian los gramos
+      select coalesce(sum((e->>'gramos')::numeric), 0) * r.copias into v_g from jsonb_array_elements(r.lineas) e;
+      v_det := r.coste_detalle || jsonb_build_object('gramos', v_g, 'merma_pct', 0);
+    else
+      v_det := public._aplicar_gratis(public._coste(r.lineas, r.minutos, r.copias), public._gratis_restante(r.user_id, r.nombre, r.id));
+    end if;
     r.coste_detalle := v_det; r.coste := (v_det->>'total')::numeric;
     if r.descontado then perform public._stock(r.lineas, r.copias, (v_det->>'merma_pct')::numeric, -1); end if;
   end if;
@@ -290,6 +296,36 @@ begin
     notas = r.notas, pagado = r.pagado, coste = r.coste, coste_detalle = r.coste_detalle, estado = r.estado,
     historial = r.historial, descontado = r.descontado, prioridad = r.prioridad, fotos = r.fotos, actualizado = now()
   where id = p_id;
+end $$;
+
+-- el taller sube a la vitrina algo que ha impreso por su cuenta: sin enlace, sin cobro, para quien quiera
+create or replace function public.admin_crear_pieza(p_clave text, p jsonb) returns uuid
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_lineas jsonb := public._lineas(p->'lineas');
+  v_cop int := least(50, greatest(1, coalesce((p->>'copias')::int, 1)));
+  v_min int := least(10000, greatest(0, coalesce((p->>'minutos')::int, 0)));
+  v_titulo text := left(trim(coalesce(p->>'titulo', '')), 120);
+  v_nombre text := left(trim(coalesce(p->>'nombre', '')), 40);
+  v_estado text := case when p->>'estado' = 'entregado' then 'entregado' else 'impreso' end;
+  v_url text := left(trim(coalesce(p->>'url', '')), 500);
+  v_g numeric;
+  v_det jsonb; v_id uuid; v_fotos jsonb;
+begin
+  perform public._exigir_admin(p_clave);
+  if v_titulo = '' then raise exception 'Ponle un nombre a la pieza'; end if;
+  if v_nombre = '' then v_nombre := 'Taller'; end if;
+  if v_url !~* '^https?://' then v_url := ''; end if;
+  v_fotos := coalesce((select jsonb_agg(left(x, 600)) from (select jsonb_array_elements_text(coalesce(p->'fotos', '[]'::jsonb)) x limit 12) t where x like 'https://%'), '[]'::jsonb);
+  select coalesce(sum((e->>'gramos')::numeric), 0) * v_cop into v_g from jsonb_array_elements(v_lineas) e;
+  v_det := jsonb_build_object('filamento', 0, 'merma', 0, 'merma_pct', 0, 'luz', 0, 'gramos', v_g, 'total', 0, 'lineas', '[]'::jsonb, 'taller', true);
+  insert into public.pedidos (nombre, url, titulo, imagen, lineas, minutos, copias, notas, estado, pagado, coste, coste_detalle, historial, descontado, fotos)
+  values (v_nombre, v_url, v_titulo, '', v_lineas, v_min, v_cop, left(coalesce(p->>'notas', ''), 600), v_estado, true, 0, v_det,
+    jsonb_build_array(jsonb_build_object('estado', v_estado, 'fecha', now())), true, v_fotos)
+  returning id into v_id;
+  -- lo gastado sale de los rollos
+  perform public._stock(v_lineas, v_cop, 0, -1);
+  return v_id;
 end $$;
 
 create or replace function public.admin_borrar_pedido(p_clave text, p_id uuid) returns void
@@ -360,7 +396,8 @@ revoke all on function public._lineas(jsonb), public._coste(jsonb, int, int), pu
   public._es_admin(text), public._exigir_admin(text), public._gratis_restante(uuid, text, uuid) from public, anon, authenticated;
 grant execute on function public.crear_pedido(jsonb), public.cancelar_pedido(uuid, text), public.comprobar_clave(text), public.soy_admin(),
   public.admin_pedido(text, uuid, jsonb), public.admin_borrar_pedido(text, uuid), public.admin_filamento(text, jsonb),
-  public.admin_borrar_filamento(text, uuid), public.admin_ajustes(text, jsonb), public.admin_cambiar_clave(text, text) to anon, authenticated;
+  public.admin_borrar_filamento(text, uuid), public.admin_ajustes(text, jsonb), public.admin_cambiar_clave(text, text),
+  public.admin_crear_pieza(text, jsonb) to anon, authenticated;
 
 -- ---------- tiempo real (la cola se actualiza sola en todos los móviles) ----------
 do $$

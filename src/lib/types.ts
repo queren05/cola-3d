@@ -112,6 +112,19 @@ export interface Pedido {
   user_id?: string | null;
 }
 
+export interface NuevaPieza {
+  titulo: string;
+  /** para quién es (vacío = el taller) */
+  nombre: string;
+  url: string;
+  lineas: Linea[];
+  minutos: number;
+  copias: number;
+  notas: string;
+  estado: "impreso" | "entregado";
+  fotos: string[];
+}
+
 export interface NuevoPedido {
   nombre: string;
   url: string;
@@ -148,6 +161,8 @@ export interface Api {
   comprobarClave(clave: string): Promise<boolean>;
   adminPedido(clave: string, id: string, cambios: CambiosPedido): Promise<void>;
   adminBorrarPedido(clave: string, id: string): Promise<void>;
+  /** el taller sube a la vitrina algo impreso por su cuenta (sin enlace ni cobro) */
+  adminCrearPieza(clave: string, p: NuevaPieza): Promise<string>;
   adminFilamento(clave: string, f: Partial<Filamento>): Promise<void>;
   adminBorrarFilamento(clave: string, id: string): Promise<void>;
   adminAjustes(clave: string, a: Ajustes): Promise<void>;

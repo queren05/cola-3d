@@ -67,6 +67,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       if (ruta) await sb.storage.from("fotos").remove([decodeURIComponent(ruta)]);
     },
     adminBorrarPedido: (clave, id) => rpc("admin_borrar_pedido", { p_clave: clave, p_id: id }),
+    adminCrearPieza: (clave, p) => rpc<string>("admin_crear_pieza", { p_clave: clave, p }),
     adminFilamento: (clave, f) => rpc("admin_filamento", { p_clave: clave, f }),
     adminBorrarFilamento: (clave, id) => rpc("admin_borrar_filamento", { p_clave: clave, p_id: id }),
     adminAjustes: (clave, a) => rpc("admin_ajustes", { p_clave: clave, a }),

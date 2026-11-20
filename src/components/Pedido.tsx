@@ -56,7 +56,7 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
       <div className="tarjeta-img">
         <Portada p={p} layoutId={`img-${p.id}`} />
         {posicion !== null && <span className="turno num">#{posicion}</span>}
-        <span className="precio num">{eur(p.coste)}</span>
+        {!esTaller(p) && <span className="precio num">{eur(p.coste)}</span>}
       </div>
       <div className="tarjeta-cuerpo">
         <div className="tarjeta-titulo">{p.titulo || dominio(p.url)}</div>
@@ -145,17 +145,23 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                   <span>{fechaLarga(p.creado)}</span>
                 </div>
               </div>
-              <div className="hoja-total">
-                <span className="num">{eur(p.coste)}</span>
-                {p.estado !== "cancelado" && (p.pagado ? <span className="pagado"><ICheck width={14} height={14} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
-              </div>
+              {esTaller(p) ? (
+                <div className="hoja-total"><span className="del-taller">Del taller</span></div>
+              ) : (
+                <div className="hoja-total">
+                  <span className="num">{eur(p.coste)}</span>
+                  {p.estado !== "cancelado" && (p.pagado ? <span className="pagado"><ICheck width={14} height={14} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
+                </div>
+              )}
             </div>
 
             {!esAdmin && !p.pagado && p.estado !== "cancelado" && <Pago p={p} bizum={datos.ajustes.bizum} />}
 
-            <a className="boton primario ancho" href={p.url} target="_blank" rel="noopener noreferrer">
-              <IEnlace width={18} height={18} /> Abrir en {dominio(p.url)}
-            </a>
+            {!!p.url && (
+              <a className="boton primario ancho" href={p.url} target="_blank" rel="noopener noreferrer">
+                <IEnlace width={18} height={18} /> Abrir en {dominio(p.url)}
+              </a>
+            )}
 
             {(esAdmin || !!p.fotos?.length) && (
               <Fotos p={p} puede={esAdmin && clave !== null && !!api.subirFoto} guardar={(fotos) => api.adminPedido(clave ?? "", p.id, { fotos })} />
@@ -194,9 +200,11 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                   ))}
                 </div>
                 <div className="fila-botones">
-                  <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { pagado: !p.pagado }), p.pagado ? "Quitado el pagado" : "Marcado como pagado")}>
-                    {p.pagado ? "Quitar pagado" : "Marcar pagado"}
-                  </button>
+                  {!esTaller(p) && (
+                    <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { pagado: !p.pagado }), p.pagado ? "Quitado el pagado" : "Marcado como pagado")}>
+                      {p.pagado ? "Quitar pagado" : "Marcar pagado"}
+                    </button>
+                  )}
                   {p.estado === "pendiente" && (
                     (p.prioridad || 0) > 0 ? (
                       <button className="boton" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { prioridad: 0 }), "Vuelve a su sitio en la cola")}>Quitar prioridad</button>
@@ -225,7 +233,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
               )}
             </AnimatePresence>
 
-            <div className="bloque">
+            {!esTaller(p) && <div className="bloque">
               <span className="etiqueta">Coste</span>
               <div className="desglose">
                 {det?.lineas?.map((l, i) => (
@@ -267,7 +275,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                   <span className="num">{eur(p.coste)}</span>
                 </div>
               </div>
-            </div>
+            </div>}
 
             {p.notas && (
               <div className="bloque">
@@ -375,8 +383,11 @@ function Pago({ p, bizum }: { p: Pedido; bizum: string }) {
   );
 }
 
+/** pieza que el taller ha subido a la vitrina por su cuenta (no se cobra) */
+export const esTaller = (p: Pedido) => !!(p.coste_detalle as { taller?: boolean } | undefined)?.taller;
+
 /** reduce la foto a 1600 px como mucho y la pasa a JPEG */
-async function reducir(f: File): Promise<Blob> {
+export async function reducir(f: File): Promise<Blob> {
   const bmp = await createImageBitmap(f);
   const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas");
