@@ -416,3 +416,37 @@ create policy "fotos taller sube" on storage.objects for insert to authenticated
   with check (bucket_id = 'fotos' and exists (select 1 from public.admins where user_id = auth.uid()));
 create policy "fotos taller borra" on storage.objects for delete to authenticated
   using (bucket_id = 'fotos' and exists (select 1 from public.admins where user_id = auth.uid()));
+
+-- ---------- quién entra (solo lo ve el taller) ----------
+create table if not exists public.accesos (
+  user_id uuid primary key references auth.users on delete cascade,
+  ultima timestamptz not null default now(),
+  veces int not null default 1
+);
+alter table public.accesos enable row level security;
+
+-- la web y la app lo llaman al abrir con la sesión iniciada (cuenta una visita cada 30 min como mucho)
+create or replace function public.marcar_visita() returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if auth.uid() is null then return; end if;
+  insert into public.accesos (user_id) values (auth.uid())
+  on conflict (user_id) do update set
+    veces = public.accesos.veces + case when public.accesos.ultima < now() - interval '30 minutes' then 1 else 0 end,
+    ultima = now();
+end $$;
+
+create or replace function public.admin_cuentas(p_clave text)
+returns table (id uuid, nombre text, email text, alta timestamptz, ultima timestamptz, veces int, confirmada boolean, pedidos int)
+language plpgsql stable security definer set search_path = public, extensions as $$
+begin
+  perform public._exigir_admin(p_clave);
+  return query
+    select u.id, coalesce(nullif(u.raw_user_meta_data->>'nombre', ''), split_part(u.email, '@', 1))::text, u.email::text, u.created_at,
+      greatest(a.ultima, u.last_sign_in_at), coalesce(a.veces, case when u.last_sign_in_at is null then 0 else 1 end),
+      u.email_confirmed_at is not null, (select count(*)::int from public.pedidos p where p.user_id = u.id)
+    from auth.users u left join public.accesos a on a.user_id = u.id
+    order by greatest(a.ultima, u.last_sign_in_at) desc nulls last, u.created_at desc;
+end $$;
+
+grant execute on function public.marcar_visita(), public.admin_cuentas(text) to anon, authenticated;

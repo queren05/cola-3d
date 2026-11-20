@@ -102,6 +102,7 @@ export function Proveedor({ children }: { children: ReactNode }) {
     const quitar = api.alRecuperar?.(() => setRecuperando(true));
     api.sesion().then(async (s) => {
       setSesion(s);
+      if (s) api.marcarVisita?.().catch(() => {});
       if (s && api.soyAdmin) setAdminCuenta(await api.soyAdmin().catch(() => false));
     });
     return quitar;
@@ -130,6 +131,7 @@ export function Proveedor({ children }: { children: ReactNode }) {
       setRecuperando,
       setSesion: (s) => {
         setSesion(s);
+        if (s) api.marcarVisita?.().catch(() => {});
         if (s && api.soyAdmin) api.soyAdmin().then(setAdminCuenta).catch(() => {});
         else setAdminCuenta(false);
       },

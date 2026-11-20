@@ -112,6 +112,17 @@ export interface Pedido {
   user_id?: string | null;
 }
 
+export interface Cuenta {
+  id: string;
+  nombre: string;
+  email: string;
+  alta: string;
+  ultima: string | null;
+  veces: number;
+  confirmada: boolean;
+  pedidos: number;
+}
+
 export interface NuevaPieza {
   titulo: string;
   /** para quién es (vacío = el taller) */
@@ -161,6 +172,10 @@ export interface Api {
   comprobarClave(clave: string): Promise<boolean>;
   adminPedido(clave: string, id: string, cambios: CambiosPedido): Promise<void>;
   adminBorrarPedido(clave: string, id: string): Promise<void>;
+  /** cuentas creadas y cuándo han entrado (solo el taller) */
+  adminCuentas?(clave: string): Promise<Cuenta[]>;
+  /** apunta que has entrado (con la sesión iniciada) */
+  marcarVisita?(): Promise<void>;
   /** el taller sube a la vitrina algo impreso por su cuenta (sin enlace ni cobro) */
   adminCrearPieza(clave: string, p: NuevaPieza): Promise<string>;
   adminFilamento(clave: string, f: Partial<Filamento>): Promise<void>;

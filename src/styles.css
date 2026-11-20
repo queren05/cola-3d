@@ -696,3 +696,16 @@ button.quien:not(:has(.avatar)) { padding: 0 14px; background: var(--hot); color
 .np-check input { width: 20px; height: 20px; accent-color: var(--hot); }
 .del-taller { font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 99px; background: var(--hot-soft); color: var(--hot); white-space: nowrap; }
 @media (max-width: 560px) { .velo:has(.nueva-pieza) { align-items: end; padding: 0; } .nueva-pieza { border-radius: 26px 26px 0 0; max-height: 92dvh; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); } }
+
+/* cuentas (taller) */
+.cuentas { display: flex; flex-direction: column; gap: 10px; }
+.cuentas-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.cuenta-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); }
+.cuenta-fila.esqueleto { height: 58px; background: linear-gradient(100deg, var(--surface-2) 30%, var(--line) 50%, var(--surface-2) 70%) 0 0 / 300% 100%; animation: brillar 1.3s linear infinite; }
+.cuenta-txt { display: flex; flex-direction: column; min-width: 0; }
+.cuenta-txt strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cuenta-txt span { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cuenta-datos { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.cuenta-datos span { font-size: 13px; font-weight: 650; white-space: nowrap; }
+.cuenta-datos span.reciente { color: var(--ok); }
+.cuenta-datos small { font-size: 11.5px; color: var(--muted); white-space: nowrap; }

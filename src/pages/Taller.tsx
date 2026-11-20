@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ICandado } from "../components/Iconos";
-import { Numero, ClaveInput } from "../components/Piezas";
-import { eur, gramos, num } from "../lib/formato";
+import { Avatar, Numero, ClaveInput } from "../components/Piezas";
+import { eur, gramos, hace, num } from "../lib/formato";
+import type { Cuenta } from "../lib/types";
 import { useDatos } from "../lib/store";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -139,6 +140,8 @@ function Panel() {
         </button>
       </section>
 
+      <Cuentas />
+
       {clave !== "" && (
         <section className="panel formulario">
           <h2>Clave del taller</h2>
@@ -158,5 +161,48 @@ function Panel() {
         </section>
       )}
     </>
+  );
+}
+
+/** quién se ha hecho cuenta y cuándo ha entrado (aunque no haya pedido nada) */
+function Cuentas() {
+  const { api, clave, datos } = useDatos();
+  const [lista, setLista] = useState<Cuenta[] | null>(null);
+  const [fallo, setFallo] = useState("");
+  const [todas, setTodas] = useState(false);
+  useEffect(() => {
+    if (!api.adminCuentas || clave === null) return;
+    api.adminCuentas(clave).then(setLista).catch((e) => setFallo(e instanceof Error ? e.message : "No se han podido leer"));
+  }, [api, clave, datos.pedidos.length]);
+  if (!api.adminCuentas) return null;
+  const hoy = (lista || []).filter((c) => c.ultima && Date.now() - new Date(c.ultima).getTime() < 864e5).length;
+  const visibles = todas ? lista || [] : (lista || []).slice(0, 8);
+  return (
+    <section className="panel cuentas">
+      <div className="cuentas-cab">
+        <h2>Cuentas</h2>
+        {lista && <span className="etiqueta">{lista.length} en total · {hoy} hoy</span>}
+      </div>
+      {fallo && <p className="error-txt">{fallo}</p>}
+      {!lista && !fallo && <div className="cuenta-fila esqueleto" />}
+      <AnimatePresence initial={false}>
+        {visibles.map((c, i) => (
+          <motion.div key={c.id} className="cuenta-fila" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: Math.min(i * 0.04, 0.3), ease }}>
+            <Avatar nombre={c.nombre} size={38} />
+            <div className="cuenta-txt">
+              <strong>{c.nombre}</strong>
+              <span>{c.email}</span>
+            </div>
+            <div className="cuenta-datos">
+              <span className={c.ultima && Date.now() - new Date(c.ultima).getTime() < 864e5 ? "reciente" : ""}>{c.ultima ? hace(c.ultima) : c.confirmada ? "Sin entrar" : "Sin confirmar"}</span>
+              <small>{c.veces} {c.veces === 1 ? "visita" : "visitas"} · {c.pedidos} {c.pedidos === 1 ? "pedido" : "pedidos"}</small>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+      {lista && lista.length > 8 && (
+        <button className="boton" onClick={() => setTodas((v) => !v)}>{todas ? "Ver menos" : `Ver las ${lista.length}`}</button>
+      )}
+    </section>
   );
 }

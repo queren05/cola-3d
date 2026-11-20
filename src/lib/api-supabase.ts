@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { AJUSTES_DEFECTO } from "./coste";
-import type { Ajustes, Api, Datos, Filamento, Pedido, Perfil } from "./types";
+import type { Ajustes, Api, Cuenta, Datos, Filamento, Pedido, Perfil } from "./types";
 
 /** Supabase: la web solo lee las tablas; todo lo que escribe pasa por las funciones de supabase/schema.sql. */
 export function apiSupabase(url: string, key: string, cuentas: boolean, previewFn: boolean): Api {
@@ -68,6 +68,10 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     },
     adminBorrarPedido: (clave, id) => rpc("admin_borrar_pedido", { p_clave: clave, p_id: id }),
     adminCrearPieza: (clave, p) => rpc<string>("admin_crear_pieza", { p_clave: clave, p }),
+    adminCuentas: (clave) => rpc<Cuenta[]>("admin_cuentas", { p_clave: clave }),
+    marcarVisita: async () => {
+      await sb.rpc("marcar_visita", {});
+    },
     adminFilamento: (clave, f) => rpc("admin_filamento", { p_clave: clave, f }),
     adminBorrarFilamento: (clave, id) => rpc("admin_borrar_filamento", { p_clave: clave, p_id: id }),
     adminAjustes: (clave, a) => rpc("admin_ajustes", { p_clave: clave, a }),
