@@ -15,7 +15,8 @@ create table if not exists public.ajustes (
   bizum text not null default ''                 -- teléfono para pagar por Bizum
 );
 alter table public.ajustes add column if not exists bizum text not null default '';
-alter table public.ajustes add column if not exists gratis_g numeric not null default 50; -- gramos gratis para cada persona (se gastan entre sus pedidos)
+alter table public.ajustes add column if not exists gratis_g numeric not null default 50;
+alter table public.ajustes add column if not exists pago_minimo numeric not null default 0.5; -- por debajo no se pide pagar: se acumula -- gramos gratis para cada persona (se gastan entre sus pedidos)
 insert into public.ajustes (id) values (1) on conflict do nothing;
 
 create table if not exists public.secreto (
@@ -402,7 +403,8 @@ begin
     luz_hora = greatest(0, coalesce((a->>'luz_hora')::numeric, luz_hora)),
     merma_pct = greatest(0, coalesce((a->>'merma_pct')::numeric, merma_pct)),
     bizum = left(trim(coalesce(a->>'bizum', bizum)), 30),
-    gratis_g = greatest(0, coalesce((a->>'gratis_g')::numeric, gratis_g))
+    gratis_g = greatest(0, coalesce((a->>'gratis_g')::numeric, gratis_g)),
+    pago_minimo = greatest(0, coalesce((a->>'pago_minimo')::numeric, pago_minimo))
   where id = 1;
 end $$;
 

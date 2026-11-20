@@ -5,7 +5,8 @@ import { Impresora, Numero, Vacio } from "../components/Piezas";
 import { TarjetaPedido } from "../components/Pedido";
 import { clave, gramos, n0 } from "../lib/formato";
 import { useDatos } from "../lib/store";
-import type { Pedido } from "../lib/types";
+import { acumula } from "../lib/coste";
+import type { Ajustes, Pedido } from "../lib/types";
 
 type Filtro = "cola" | "hechos" | "mios" | "todos";
 const FILTROS: { id: Filtro; label: string }[] = [
@@ -16,10 +17,13 @@ const FILTROS: { id: Filtro; label: string }[] = [
 ];
 
 /** orden de la cola: lo que se imprime, luego pendientes */
-export function ordenCola(ps: Pedido[]) {
-  const imp = ps.filter((p) => p.estado === "imprimiendo").sort((a, b) => a.creado.localeCompare(b.creado));
-  // pendientes: primero los ya pagados (listos para imprimir), luego por fecha de llegada
-  const pen = ps.filter((p) => p.estado === "pendiente").sort((a, b) => Number(!!a.peticion) - Number(!!b.peticion) || (b.prioridad || 0) - (a.prioridad || 0) || Number(b.pagado) - Number(a.pagado) || a.creado.localeCompare(b.creado));
+export function ordenCola(ps: Pedido[], a?: Ajustes) {
+  const imp = ps.filter((p) => p.estado === "imprimiendo").sort((x, y) => x.creado.localeCompare(y.creado));
+  // pendientes: primero los listos para imprimir (pagados o con deuda tan pequeña que se acumula), luego por llegada
+  const listo = (p: Pedido) => p.pagado || (!!a && acumula(p, ps, a));
+  const pen = ps
+    .filter((p) => p.estado === "pendiente")
+    .sort((x, y) => Number(!!x.peticion) - Number(!!y.peticion) || (y.prioridad || 0) - (x.prioridad || 0) || Number(listo(y)) - Number(listo(x)) || x.creado.localeCompare(y.creado));
   return [...imp, ...pen];
 }
 
@@ -44,7 +48,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
     return () => clearTimeout(t);
   }, [resaltado, setResaltado]);
 
-  const cola = useMemo(() => ordenCola(datos.pedidos), [datos.pedidos]);
+  const cola = useMemo(() => ordenCola(datos.pedidos, datos.ajustes), [datos.pedidos, datos.ajustes]);
   const posiciones = useMemo(() => {
     const m = new Map<string, number>();
     cola.filter((p) => p.estado === "pendiente" && !p.peticion).forEach((p, i) => m.set(p.id, i + 1));

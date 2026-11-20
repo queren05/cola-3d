@@ -25,7 +25,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       const err = a.error || f.error || p.error;
       if (err) throw new Error(err.message);
       const aj: Ajustes = a.data
-        ? { precio_defecto: num(a.data.precio_defecto), peso_defecto: num(a.data.peso_defecto), luz_hora: num(a.data.luz_hora), merma_pct: num(a.data.merma_pct), bizum: String(a.data.bizum || ""), gratis_g: a.data.gratis_g === undefined || a.data.gratis_g === null ? 50 : num(a.data.gratis_g) }
+        ? { precio_defecto: num(a.data.precio_defecto), peso_defecto: num(a.data.peso_defecto), luz_hora: num(a.data.luz_hora), merma_pct: num(a.data.merma_pct), bizum: String(a.data.bizum || ""), gratis_g: a.data.gratis_g === undefined || a.data.gratis_g === null ? 50 : num(a.data.gratis_g), pago_minimo: a.data.pago_minimo === undefined || a.data.pago_minimo === null ? 0.5 : num(a.data.pago_minimo) }
         : AJUSTES_DEFECTO;
       const filamentos = (f.data || []).map((x) => ({ ...x, precio: x.precio === null ? null : Number(x.precio), peso: num(x.peso), stock_g: num(x.stock_g) })) as Filamento[];
       const pedidos = (p.data || []).map((x) => ({ ...x, coste: num(x.coste) })) as Pedido[];

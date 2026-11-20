@@ -842,3 +842,11 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .listas-nueva input:focus { border-color: var(--hot); }
 .listas-nueva .boton { padding: 0 12px; height: 38px; }
 .perfil-datos { align-items: flex-start; text-align: left; } .perfil-nombre { width: 100%; justify-content: flex-start; } .perfil-nombre h1 { text-align: left; margin: 0; }
+
+/* pagos pequeños que se acumulan */
+.acumula-chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; white-space: nowrap; color: var(--muted); background: var(--surface-2); }
+.pago.acumula { background: var(--surface-2); border-color: var(--line); }
+.pago.acumula strong { color: var(--muted); }
+.cobrar-todo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 18px;
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+.cobrar-todo b { color: var(--danger); }

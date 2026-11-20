@@ -27,7 +27,7 @@ export function calcularCoste(lineas: Linea[], minutos: number, copias: number, 
   return { filamento: r2(fil), merma: r2(merma), merma_pct: mermaPct, luz: r2(luz), gramos: gtot, total: r2(fil + merma + luz), lineas: out };
 }
 
-export const AJUSTES_DEFECTO: Ajustes = { precio_defecto: 17.99, peso_defecto: 1000, luz_hora: 0.1, merma_pct: 10, bizum: "", gratis_g: 50 };
+export const AJUSTES_DEFECTO: Ajustes = { precio_defecto: 17.99, peso_defecto: 1000, luz_hora: 0.1, merma_pct: 10, bizum: "", gratis_g: 50, pago_minimo: 0.5 };
 
 /** gramos gratis que le quedan a una persona (lo mismo que _gratis_restante en la base de datos) */
 export function gratisRestante(pedidos: Pedido[], a: Ajustes, uid: string | null | undefined, nombre: string, excluir?: string): number {
@@ -55,3 +55,16 @@ export function juntarLineas(ls: Linea[]): Linea[] {
   }
   return [...m.values()];
 }
+
+/** el mismo que pidió: su cuenta o, sin cuenta, su nombre */
+export const mismaPersona = (a: Pedido, b: Pedido) => (a.user_id ? a.user_id === b.user_id : !b.user_id && clave(a.nombre) === clave(b.nombre));
+const delTaller = (p: Pedido) => !!(p.coste_detalle as { taller?: boolean } | undefined)?.taller;
+
+/** lo que debe esa persona entre todos sus pedidos sin pagar */
+export function deudaDe(p: Pedido, pedidos: Pedido[]): { total: number; pedidos: Pedido[] } {
+  const ps = pedidos.filter((x) => mismaPersona(p, x) && !x.pagado && x.estado !== "cancelado" && !x.peticion && !delTaller(x) && x.coste > 0);
+  return { total: Math.round(ps.reduce((t, x) => t + x.coste, 0) * 100) / 100, pedidos: ps };
+}
+
+/** aún no llega al mínimo: no se pide pagar, se acumula y se imprime igual */
+export const acumula = (p: Pedido, pedidos: Pedido[], a: Ajustes) => !p.pagado && deudaDe(p, pedidos).total < (a.pago_minimo ?? 0.5);

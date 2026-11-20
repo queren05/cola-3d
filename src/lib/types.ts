@@ -35,6 +35,8 @@ export interface Ajustes {
   bizum: string;
   /** gramos gratis para cada persona, que se gastan entre sus pedidos */
   gratis_g: number;
+  /** por debajo de esto no se pide pagar: se acumula (Bizum no deja menos de 0,50 €) */
+  pago_minimo?: number;
 }
 
 export interface Linea {

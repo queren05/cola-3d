@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { IFlecha, IGente } from "../components/Iconos";
 import { Avatar, Barra, Chip, Numero, Vacio } from "../components/Piezas";
 import { Portada } from "../components/Pedido";
@@ -47,7 +47,7 @@ export function agruparPersonas(ps: Pedido[]): Persona[] {
 }
 
 export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string) => void; abrir: (id: string) => void }) {
-  const { datos, esAdmin, esMio } = useDatos();
+  const { datos, esAdmin, esMio, clave: claveTaller } = useDatos();
   const mios = datos.pedidos.filter((p) => esMio(p) && p.estado !== "cancelado");
   const yoPagado = mios.filter((p) => p.pagado).reduce((t, p) => t + p.coste, 0);
   const yoDebo = mios.filter((p) => !p.pagado).reduce((t, p) => t + p.coste, 0);
@@ -69,6 +69,9 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
                 <span className="sobretitulo">{sel.pedidos.length} pedido{sel.pedidos.length === 1 ? "" : "s"} · {gramos(sel.gramos)} impresos</span>
               </div>
             </header>
+            {esAdmin && claveTaller !== null && sel.pedidos.some((p) => !p.pagado && p.estado !== "cancelado" && !p.peticion && p.coste > 0) && (
+              <CobrarTodo pedidos={sel.pedidos.filter((p) => !p.pagado && p.estado !== "cancelado" && !p.peticion && p.coste > 0)} />
+            )}
             <div className="cifras">
               <div><span className="etiqueta">Ha pagado</span><span className="cifra"><Numero valor={sel.pagado} /></span></div>
               <div><span className="etiqueta">En cola</span><span className="cifra"><Numero valor={sel.enCola} /></span></div>
@@ -136,6 +139,32 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** el taller marca como pagados todos los pedidos de una persona de golpe */
+function CobrarTodo({ pedidos }: { pedidos: Pedido[] }) {
+  const { api, clave, aviso, recargar } = useDatos();
+  const [ocupado, setOcupado] = useState(false);
+  const total = pedidos.reduce((t, p) => t + p.coste, 0);
+  async function cobrar() {
+    if (clave === null || !confirm(`¿Marcar como pagados ${pedidos.length} pedidos (${eur(total)})?`)) return;
+    setOcupado(true);
+    try {
+      for (const p of pedidos) await api.adminPedido(clave, p.id, { pagado: true });
+      await recargar();
+      aviso(`Cobrado: ${eur(total)}`);
+    } catch (e) {
+      aviso(e instanceof Error ? e.message : "No se ha podido cobrar", "error");
+    } finally {
+      setOcupado(false);
+    }
+  }
+  return (
+    <div className="cobrar-todo">
+      <span>Debe <b className="num">{eur(total)}</b> de {pedidos.length} {pedidos.length === 1 ? "pedido" : "pedidos"}</span>
+      <button className="boton primario" disabled={ocupado} onClick={cobrar}>{ocupado ? "Cobrando…" : "Cobrar todo"}</button>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { dominio, duracion, eur, fechaLarga, gramos, hace, num } from "../lib/formato";
+import { acumula, deudaDe } from "../lib/coste";
 import { useDatos } from "../lib/store";
 import { ESTADOS, type Estado, type Linea, type Pedido } from "../lib/types";
 import { ICerrar, ICheck, IEnlace, IPapelera, IReloj } from "./Iconos";
@@ -38,6 +39,7 @@ export function Portada({ p, alto, layoutId }: { p: Pedido; alto?: number; layou
 }
 
 export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedido; posicion: number | null; onAbrir: () => void; mio: boolean; resaltar: boolean }) {
+  const { datos: datosCola } = useDatos();
   return (
     <motion.article
       layout
@@ -70,7 +72,7 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
         <div className="tarjeta-pie">
           <span className="chips">
             <Chip estado={p.estado} />
-            {p.peticion && p.estado === "pendiente" ? <span className="peticion-chip">Petición · {p.lineas.filter((l) => l.gramos > 0).length} colores</span> : p.estado === "pendiente" && (p.pagado ? <span className="pagado"><ICheck width={12} height={12} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
+            {p.peticion && p.estado === "pendiente" ? <span className="peticion-chip">Petición · {p.lineas.filter((l) => l.gramos > 0).length} colores</span> : p.estado === "pendiente" && !p.pagado && acumula(p, datosCola.pedidos, datosCola.ajustes) ? <span className="acumula-chip">Se acumula</span> : p.estado === "pendiente" && (p.pagado ? <span className="pagado"><ICheck width={12} height={12} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
           </span>
           <span className="colores">
             {p.lineas.slice(0, 5).map((l, i) => (
@@ -367,15 +369,29 @@ function AjustarGramos({ p, onGuardar, ocupado, filamentos }: { p: Pedido; onGua
 
 /** cómo pagar: Bizum o en mano; se imprime al recibirlo */
 function Pago({ p, bizum }: { p: Pedido; bizum: string }) {
-  const { aviso } = useDatos();
+  const { aviso, datos } = useDatos();
+  const minimo = datos.ajustes.pago_minimo ?? 0.5;
+  const deuda = deudaDe(p, datos.pedidos);
+  if (deuda.total < minimo) {
+    return (
+      <motion.div className="pago acumula" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, ease }}>
+        <div className="pago-arriba">
+          <span className="etiqueta">Se acumula</span>
+          <strong className="num">{eur(deuda.total)}</strong>
+        </div>
+        <p>Aún no hace falta pagar: se paga todo junto cuando llegues a {eur(minimo)} (Bizum no deja enviar menos). Se imprime igual.</p>
+      </motion.div>
+    );
+  }
+  const varios = deuda.pedidos.length > 1;
   return (
     <motion.div className="pago" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, ease }}>
       <div className="pago-arriba">
-        <span className="etiqueta">Por pagar</span>
-        <strong className="num">{eur(p.coste)}</strong>
+        <span className="etiqueta">{varios ? `Por pagar · ${deuda.pedidos.length} pedidos` : "Por pagar"}</span>
+        <strong className="num">{eur(deuda.total)}</strong>
       </div>
       <p>
-        Por Bizum{bizum ? <> al <b className="num">{bizum}</b></> : ""} o en mano. {p.estado === "pendiente" ? "Se imprime cuando llegue el pago." : ""}
+        {varios ? "Paga todo junto " : ""}por Bizum{bizum ? <> al <b className="num">{bizum}</b></> : ""} o en mano. {p.estado === "pendiente" ? "Se imprime cuando llegue el pago." : ""}
       </p>
       {bizum && (
         <button
