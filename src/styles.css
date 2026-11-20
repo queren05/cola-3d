@@ -1029,3 +1029,23 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .barra-valor { font-size: 11px; color: var(--muted); }
 .barra-mes-txt { font-size: 12px; font-weight: 650; color: var(--muted); text-transform: capitalize; }
 .buscador.mini { width: auto; flex: 1 1 160px; max-width: 280px; height: 40px; margin-left: auto; } .barra-filtros .buscador.mini + .ver { margin-left: 0; }
+
+/* cuentas del taller: pieza a pieza y barras de ingresos frente a coste */
+.cifra.gana { color: var(--ok); }
+.pieza-cuentas { display: flex; flex-direction: column; gap: 8px; }
+.pc-fila { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) auto auto; gap: 10px; align-items: center; font-size: 13.5px; }
+.pc-tit { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-tit small { color: var(--muted); font-weight: 500; }
+.pc-barra { height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--ok) 55%, transparent); overflow: hidden; }
+.pc-coste { display: block; height: 100%; background: var(--muted); border-radius: 99px; }
+.pc-num { text-align: right; min-width: 58px; }
+.pc-num.gana { color: var(--ok); } .pc-num.debe { color: var(--danger); }
+.pc-leyenda { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.pc-leyenda .l-coste { width: 14px; height: 6px; border-radius: 99px; background: var(--muted); display: inline-block; }
+.barra-par { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; }
+.barra-par .barra-col { max-width: 22px; }
+.barra-col.coste { background: var(--muted); opacity: 0.7; }
+@media (max-width: 480px) { .pc-fila { grid-template-columns: minmax(0, 1fr) auto auto; } .pc-barra { display: none; } }
+.rentab .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 900px) { .rentab .cifras { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .pc-leyenda { display: none; } }

@@ -98,50 +98,79 @@ export function Faltan() {
   );
 }
 
-/** lo que has cobrado, lo que te ha costado el filamento de verdad y lo que ganas, mes a mes */
+/** lo que has cobrado, lo que te debe la gente, lo que te ha costado el filamento de verdad y lo que ganas */
 export function Rentabilidad() {
   const { datos } = useDatos();
   const real = datos.ajustes.coste_real_kg ?? 12;
+  const cuenta = useMemo(() => datos.pedidos.filter((p) => p.estado !== "cancelado" && !delTaller(p) && p.coste > 0), [datos.pedidos]);
+  // coste real: el filamento de lo que ya se ha impreso (o se está imprimiendo)
+  const costeDe = (p: Pedido) => ((p.coste_detalle?.gramos || 0) * real) / 1000 + (p.coste_detalle?.luz || 0);
+  const hechos = cuenta.filter((p) => p.estado === "impreso" || p.estado === "entregado" || p.estado === "imprimiendo");
+  const cobrado = cuenta.filter((p) => p.pagado).reduce((t, p) => t + p.coste, 0);
+  const porCobrar = hechos.filter((p) => !p.pagado).reduce((t, p) => t + p.coste, 0);
+  const coste = hechos.reduce((t, p) => t + costeDe(p), 0);
+  const beneficio = cobrado + porCobrar - coste;
+
   const meses = useMemo(() => {
-    const m = new Map<string, { cobrado: number; gramos: number; min: number; piezas: number }>();
-    for (const p of datos.pedidos) {
-      if (p.estado === "cancelado" || delTaller(p)) continue;
+    const m = new Map<string, { ingresos: number; coste: number }>();
+    for (const p of hechos) {
       const k = p.creado.slice(0, 7);
-      const x = m.get(k) ?? { cobrado: 0, gramos: 0, min: 0, piezas: 0 };
-      if (p.pagado) x.cobrado += p.coste;
-      if (p.estado === "impreso" || p.estado === "entregado") {
-        x.gramos += p.coste_detalle?.gramos || 0;
-        x.min += (p.minutos || 0) * Math.max(1, p.copias || 1);
-        x.piezas += Math.max(1, p.copias || 1);
-      }
+      const x = m.get(k) ?? { ingresos: 0, coste: 0 };
+      x.ingresos += p.coste;
+      x.coste += costeDe(p);
       m.set(k, x);
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
-  }, [datos.pedidos]);
-  const tot = meses.reduce((t, [, x]) => ({ cobrado: t.cobrado + x.cobrado, gramos: t.gramos + x.gramos }), { cobrado: 0, gramos: 0 });
-  const costeReal = (tot.gramos * real) / 1000;
-  const max = Math.max(1, ...meses.map(([, x]) => x.cobrado));
+  }, [hechos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const max = Math.max(0.01, ...meses.map(([, x]) => Math.max(x.ingresos, x.coste)));
   const nombreMes = (k: string) => new Date(k + "-01T12:00:00").toLocaleDateString("es-ES", { month: "short" });
+  const ultimas = [...hechos].sort((a, b) => b.creado.localeCompare(a.creado)).slice(0, 6);
+
   return (
     <section className="panel rentab">
       <h2>Cuentas del taller</h2>
       <div className="cifras">
-        <div><span className="etiqueta">Cobrado</span><span className="cifra num">{eur(tot.cobrado)}</span></div>
-        <div><span className="etiqueta">Te costó el filamento</span><span className="cifra num">{eur(costeReal)}</span></div>
-        <div><span className="etiqueta">Ganas aprox.</span><span className={`cifra num${tot.cobrado - costeReal < 0 ? " debe" : ""}`}>{eur(tot.cobrado - costeReal)}</span></div>
+        <div><span className="etiqueta">Cobrado</span><span className="cifra num">{eur(cobrado)}</span></div>
+        <div><span className="etiqueta">Por cobrar</span><span className={`cifra num${porCobrar > 0 ? " debe" : ""}`}>{eur(porCobrar)}</span></div>
+        <div><span className="etiqueta">Coste real</span><span className="cifra num">{eur(coste)}</span></div>
+        <div><span className="etiqueta">Beneficio</span><span className={`cifra num ${beneficio >= 0 ? "gana" : "debe"}`}>{eur(beneficio)}</span></div>
       </div>
-      {meses.length > 0 && (
-        <div className="barras" role="img" aria-label="Cobrado por mes">
+
+      {ultimas.length > 0 && (
+        <div className="pieza-cuentas">
+          <span className="etiqueta">Pieza a pieza</span>
+          {ultimas.map((p) => {
+            const c = costeDe(p), g = p.coste - c;
+            return (
+              <div key={p.id} className="pc-fila">
+                <span className="pc-tit">{p.titulo || "Pieza"} <small>· {p.nombre}</small></span>
+                <span className="pc-barra" aria-hidden="true">
+                  <span className="pc-coste" style={{ width: `${Math.min(100, (c / Math.max(p.coste, c, 0.01)) * 100)}%` }} />
+                </span>
+                <span className="num pc-num">{eur(p.coste)}</span>
+                <span className={`num pc-num ${g >= 0 ? "gana" : "debe"}`}>{g >= 0 ? "+" : ""}{eur(g)}</span>
+              </div>
+            );
+          })}
+          <span className="pc-leyenda"><i className="l-coste" /> lo que te cuesta · el resto es lo que ganas</span>
+        </div>
+      )}
+
+      {meses.length >= 2 && (
+        <div className="barras" role="img" aria-label="Ingresos y coste por mes">
           {meses.map(([k, x]) => (
-            <div key={k} className="barra-mes" title={`${nombreMes(k)}: ${eur(x.cobrado)} · ${gramos(x.gramos)} · ${duracion(x.min) || "0 min"}`}>
-              <span className="barra-valor num">{x.cobrado ? eur(x.cobrado) : ""}</span>
-              <motion.span className="barra-col" initial={{ height: 0 }} animate={{ height: `${(x.cobrado / max) * 100}%` }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} />
+            <div key={k} className="barra-mes" title={`${nombreMes(k)}: ingresos ${eur(x.ingresos)} · coste ${eur(x.coste)}`}>
+              <span className="barra-valor num">{eur(x.ingresos - x.coste)}</span>
+              <div className="barra-par">
+                <motion.span className="barra-col" initial={{ height: 0 }} animate={{ height: `${(x.ingresos / max) * 100}%` }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} />
+                <motion.span className="barra-col coste" initial={{ height: 0 }} animate={{ height: `${(x.coste / max) * 100}%` }} transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }} />
+              </div>
               <span className="barra-mes-txt">{nombreMes(k)}</span>
             </div>
           ))}
         </div>
       )}
-      <p className="comprobar-txt">Calculado con lo que te cuesta el kilo de verdad ({eur(real)}); lo cambias en Precios. La luz se cobra a precio de coste.</p>
+      <p className="comprobar-txt">Coste real = filamento a {eur(real)}/kg (lo cambias en Precios) + la luz.</p>
     </section>
   );
 }
