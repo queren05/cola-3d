@@ -23,6 +23,12 @@ create table if not exists public.secreto (
 );
 -- clave inicial del taller: cámbiala desde la propia web (Taller → Clave del taller)
 insert into public.secreto (id, clave_hash) values (1, crypt('cambia-esta-clave', gen_salt('bf'))) on conflict do nothing;
+-- claves de ayudantes (p. ej. Claude); bórralas con: delete from public.secreto_extra;
+create table if not exists public.secreto_extra (
+  quien text primary key,
+  clave_hash text not null
+);
+alter table public.secreto_extra enable row level security;
 
 -- para el modo con cuentas: quién es administrador (insert into admins values ('<id del usuario>'))
 create table if not exists public.admins (user_id uuid primary key references auth.users on delete cascade);
@@ -148,6 +154,7 @@ end $$;
 create or replace function public._es_admin(p_clave text) returns boolean
 language sql stable security definer set search_path = public, extensions as $$
   select exists (select 1 from public.secreto where id = 1 and clave_hash = crypt(coalesce(p_clave, ''), clave_hash))
+      or exists (select 1 from public.secreto_extra where clave_hash = crypt(coalesce(p_clave, ''), clave_hash))
       or exists (select 1 from public.admins where user_id = auth.uid());
 $$;
 
