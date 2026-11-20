@@ -63,7 +63,7 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
           <motion.div key={sel.clave} className="pila" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.35, ease }}>
             <button className="boton plano volver" onClick={() => ir("gente")}><IFlecha width={18} height={18} /> Gente</button>
             <header className="persona-cab">
-              <motion.div layoutId={`av-${sel.clave}`}><Avatar nombre={sel.nombre} size={64} /></motion.div>
+              <motion.div layoutId={`av-${sel.clave}`}><Avatar nombre={sel.nombre} size={64} uid={sel.pedidos.find((p) => p.user_id)?.user_id} /></motion.div>
               <div>
                 <h1>{sel.nombre}</h1>
                 <span className="sobretitulo">{sel.pedidos.length} pedido{sel.pedidos.length === 1 ? "" : "s"} · {gramos(sel.gramos)} impresos</span>
@@ -118,7 +118,7 @@ export function Gente({ persona, ir, abrir }: { persona?: string; ir: (r: string
                 <div className="gente">
                   {gente.map((g, i) => (
                     <motion.button key={g.clave} className="persona" onClick={() => ir("gente/" + encodeURIComponent(g.clave))} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.05, 0.4), duration: 0.4, ease }} whileHover={{ y: -3 }}>
-                      <motion.div layoutId={`av-${g.clave}`}><Avatar nombre={g.nombre} size={46} /></motion.div>
+                      <motion.div layoutId={`av-${g.clave}`}><Avatar nombre={g.nombre} size={46} uid={g.pedidos.find((p) => p.user_id)?.user_id} /></motion.div>
                       <div className="persona-txt">
                         <strong>{g.nombre}</strong>
                         <span>{g.pedidos.length} pedido{g.pedidos.length === 1 ? "" : "s"} · {hace(g.ultimo)}</span>

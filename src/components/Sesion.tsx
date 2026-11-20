@@ -19,13 +19,14 @@ export function MenuCuenta({ ir }: { ir: (r: string) => void }) {
   return (
     <div className="cuenta-menu" ref={caja}>
       <button className="quien" onClick={() => setAbierto((v) => !v)} aria-expanded={abierto}>
-        <Avatar nombre={sesion.nombre} size={20} />
+        <Avatar nombre={sesion.nombre} size={22} uid={sesion.id} />
         <span>{sesion.nombre}</span>
       </button>
       <AnimatePresence>
         {abierto && (
           <motion.div className="cuenta-pop" initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.96 }} transition={{ duration: 0.18 }}>
             <span className="cuenta-email">{sesion.email}</span>
+            <button onClick={() => { setAbierto(false); ir("perfil"); }}>Mi perfil</button>
             <button onClick={() => { setAbierto(false); ir("gente/" + encodeURIComponent(claveNombre(sesion.nombre))); }}>Mis pedidos</button>
             <button
               onClick={async () => {

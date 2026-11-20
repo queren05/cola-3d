@@ -1,6 +1,7 @@
 import { animate, motion, useMotionValue, useReducedMotion } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 import { colorPersona, eur, tintaSobre } from "../lib/formato";
+import { useDatos } from "../lib/store";
 import type { Estado } from "../lib/types";
 import { estadoLabel } from "../lib/types";
 
@@ -77,8 +78,11 @@ export function Chip({ estado }: { estado: Estado }) {
   );
 }
 
-export function Avatar({ nombre, size = 36 }: { nombre: string; size?: number }) {
+export function Avatar({ nombre, size = 36, uid }: { nombre: string; size?: number; uid?: string | null }) {
+  const { datos } = useDatos();
   const bg = colorPersona(nombre);
+  const foto = uid ? datos.perfiles?.[uid]?.avatar : "";
+  if (foto) return <img className="avatar avatar-foto" src={foto} alt="" style={{ width: size, height: size }} loading="lazy" />;
   return (
     <span className="avatar" style={{ width: size, height: size, background: bg, fontSize: size * 0.42 }}>
       {(nombre.trim()[0] || "?").toUpperCase()}

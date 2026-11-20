@@ -183,7 +183,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
                 <div className="vitrina-txt">
                   <strong>{p.titulo || "Pieza"}</strong>
                   <span>
-                    <Avatar nombre={p.nombre} size={18} /> {p.nombre} · {hace(cuando(p))}
+                    <Avatar nombre={p.nombre} size={18} uid={p.user_id} /> {p.nombre} · {hace(cuando(p))}
                     {p.copias > 1 ? ` · ${p.copias} copias` : ""}
                   </span>
                   <div className="vitrina-pie">
@@ -234,30 +234,81 @@ const IGuardar = ({ lleno }: { lleno: boolean }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z" fill={lleno ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
 );
 
-/** marcador para guardar la pieza */
+/** marcador para guardar la pieza: abre un menú con tus listas (o crea una nueva) */
 export function BotonGuardar({ id, guardada, grande }: { id: string; guardada: boolean; grande?: boolean }) {
-  const { api, recargar, aviso } = useDatos();
-  const [optimista, setOptimista] = useState<boolean | null>(null);
-  const activo = optimista ?? guardada;
-  useEffect(() => setOptimista(null), [guardada]);
-  async function pulsar(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!api.guardar) return;
-    setOptimista(!activo);
+  const { api, datos, recargar, aviso } = useDatos();
+  const [abierto, setAbierto] = useState<DOMRect | null>(null);
+  const [nueva, setNueva] = useState("");
+  const btn = useRef<HTMLButtonElement>(null);
+  const mias = (datos.listas || []).filter((x) => x.pedido_id === id).map((x) => x.lista);
+  const todas = [...new Set(["Guardados", ...(datos.listas || []).map((x) => x.lista)])];
+  const activo = guardada || mias.length > 0;
+
+  useEffect(() => {
+    if (!abierto) return;
+    const cerrar = () => setAbierto(null);
+    window.addEventListener("scroll", cerrar, true);
+    window.addEventListener("resize", cerrar);
+    return () => {
+      window.removeEventListener("scroll", cerrar, true);
+      window.removeEventListener("resize", cerrar);
+    };
+  }, [abierto]);
+
+  async function alternar(lista: string) {
+    if (!api.guardarEn) return;
     try {
-      const ahora = await api.guardar(id);
+      const ahora = await api.guardarEn(id, lista);
       await recargar();
-      aviso(ahora ? "Guardada" : "Quitada de guardadas");
+      aviso(ahora ? `Guardada en «${lista}»` : `Quitada de «${lista}»`);
     } catch (err) {
-      setOptimista(null);
       aviso(err instanceof Error ? err.message : "No se ha podido guardar", "error");
     }
   }
+  const ancho = 240;
+  const pos = abierto ? { top: Math.min(abierto.bottom + 6, innerHeight - 320), left: Math.max(12, Math.min(abierto.right - ancho, innerWidth - ancho - 12)) } : null;
   return (
-    <motion.button className={`guardar${activo ? " activo" : ""}${grande ? " grande" : ""}`} onClick={pulsar} aria-pressed={activo} aria-label={activo ? "Quitar de guardadas" : "Guardar"} whileTap={{ scale: 0.85 }}>
-      <IGuardar lleno={activo} />
-      {grande && <span>{activo ? "Guardada" : "Guardar"}</span>}
-    </motion.button>
+    <>
+      <motion.button
+        ref={btn}
+        className={`guardar${activo ? " activo" : ""}${grande ? " grande" : ""}`}
+        onClick={(e) => { e.stopPropagation(); setAbierto(abierto ? null : btn.current!.getBoundingClientRect()); }}
+        aria-pressed={activo}
+        aria-haspopup="menu"
+        aria-label="Guardar en una lista"
+        whileTap={{ scale: 0.85 }}
+      >
+        <IGuardar lleno={activo} />
+        {grande && <span>{activo ? (mias.length === 1 ? mias[0] : `En ${mias.length} listas`) : "Guardar"}</span>}
+      </motion.button>
+      {createPortal(
+        <AnimatePresence>
+          {pos && (
+            <>
+              <div className="listas-velo" onClick={(e) => { e.stopPropagation(); setAbierto(null); }} />
+              <motion.div className="listas-pop" role="menu" style={{ top: pos.top, left: pos.left, width: ancho }} onClick={(e) => e.stopPropagation()}
+                initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.15 }}>
+                <span className="listas-tit">Guardar en</span>
+                <div className="listas-lista">
+                  {todas.map((l) => (
+                    <button key={l} role="menuitemcheckbox" aria-checked={mias.includes(l)} className={mias.includes(l) ? "activo" : ""} onClick={() => alternar(l)}>
+                      <IGuardar lleno={mias.includes(l)} />
+                      <span>{l}</span>
+                      {mias.includes(l) && <span className="tema-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+                <form className="listas-nueva" onSubmit={(e) => { e.preventDefault(); const n = nueva.trim(); if (n) { alternar(n); setNueva(""); } }}>
+                  <input value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Nueva lista…" maxLength={40} aria-label="Nombre de la lista nueva" />
+                  <button className="boton primario" disabled={!nueva.trim()}>Crear</button>
+                </form>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -448,7 +499,7 @@ function ElegirPersona({ personas, nombre, id, onCambio }: { personas: Persona[]
   return (
     <div className="persona-sel" ref={caja}>
       <button type="button" className={`persona-btn${abierto ? " abierto" : ""}`} onClick={() => { setAbierto((v) => !v); setActivo(0); }} aria-haspopup="listbox" aria-expanded={abierto}>
-        <Avatar nombre={nombre || "Taller"} size={28} />
+        <Avatar nombre={nombre || "Taller"} size={28} uid={id} />
         <span className="persona-btn-txt">
           <strong>{nombre || "Taller"}</strong>
           <small>{actual ? actual.email : nombre ? "Sin cuenta" : "Lo ha hecho el taller"}</small>
@@ -484,7 +535,7 @@ function ElegirPersona({ personas, nombre, id, onCambio }: { personas: Persona[]
                   onMouseEnter={() => setActivo(i)}
                   onClick={() => elegir(p)}
                 >
-                  <Avatar nombre={p.nombre} size={30} />
+                  <Avatar nombre={p.nombre} size={30} uid={p.id} />
                   <span className="persona-btn-txt">
                     <strong>{p.email === "nuevo" ? `Usar «${p.nombre}»` : p.nombre}</strong>
                     <small>{p.email === "nuevo" ? "Sin cuenta" : p.email || (p.nombre === "Taller" && !p.id ? "Lo ha hecho el taller" : "Sin cuenta")}</small>

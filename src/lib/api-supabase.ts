@@ -30,11 +30,16 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       const filamentos = (f.data || []).map((x) => ({ ...x, precio: x.precio === null ? null : Number(x.precio), peso: num(x.peso), stock_g: num(x.stock_g) })) as Filamento[];
       const pedidos = (p.data || []).map((x) => ({ ...x, coste: num(x.coste) })) as Pedido[];
       // me gusta y guardados (si aún no existen las tablas, la web sigue funcionando)
-      const [v, g] = await Promise.all([
+      const sesionActiva = cuentas ? (await sb.auth.getSession()).data.session : null;
+      const [v, g, pf] = await Promise.all([
         sb.from("votos").select("pedido_id,user_id"),
-        cuentas ? sb.from("guardados").select("pedido_id") : Promise.resolve({ data: [] as { pedido_id: string }[], error: null }),
+        sesionActiva ? sb.from("guardados").select("pedido_id,lista") : Promise.resolve({ data: [] as { pedido_id: string; lista: string }[], error: null }),
+        sb.from("perfiles").select("user_id,nombre,avatar"),
       ]);
-      return { ajustes: aj, filamentos, pedidos, votos: v.error ? [] : (v.data as Datos["votos"]) || [], guardados: g.error ? [] : (g.data || []).map((x) => x.pedido_id as string) };
+      const listas = g.error ? [] : ((g.data || []) as { pedido_id: string; lista?: string }[]).map((x) => ({ pedido_id: x.pedido_id, lista: x.lista || "Guardados" }));
+      const perfiles: Datos["perfiles"] = {};
+      for (const x of (pf.error ? [] : pf.data || []) as { user_id: string; nombre: string; avatar: string }[]) perfiles[x.user_id] = { nombre: x.nombre, avatar: x.avatar };
+      return { ajustes: aj, filamentos, pedidos, votos: v.error ? [] : (v.data as Datos["votos"]) || [], guardados: [...new Set(listas.map((x) => x.pedido_id))], listas, perfiles };
     },
     escuchar(cb) {
       let t: ReturnType<typeof setTimeout> | undefined;
@@ -48,6 +53,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
         .on("postgres_changes", { event: "*", schema: "public", table: "filamentos" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "ajustes" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "votos" }, aviso)
+        .on("postgres_changes", { event: "*", schema: "public", table: "perfiles" }, aviso)
         .subscribe();
       // por si el tiempo real se corta: refresco al volver a la pestaña
       const vis = () => document.visibilityState === "visible" && aviso();
@@ -77,6 +83,22 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     adminCuentas: (clave) => rpc<Cuenta[]>("admin_cuentas", { p_clave: clave }),
     votar: (id) => rpc<boolean>("votar", { p_id: id }),
     guardar: (id) => rpc<boolean>("guardar", { p_id: id }),
+    guardarEn: (id, lista) => rpc<boolean>("guardar_en", { p_id: id, p_lista: lista }),
+    renombrarLista: (lista, nueva) => rpc("renombrar_lista", { p_lista: lista, p_nueva: nueva }),
+    borrarLista: (lista) => rpc("borrar_lista", { p_lista: lista }),
+    guardarPerfil: async (nombre, avatar) => {
+      await rpc("guardar_perfil", { p_nombre: nombre, p_avatar: avatar });
+      await sb.auth.refreshSession().catch(() => {});
+    },
+    async subirAvatar(foto) {
+      const { data } = await sb.auth.getSession();
+      const uid = data.session?.user.id;
+      if (!uid) throw new Error("Entra con tu cuenta");
+      const ruta = `${uid}/${Date.now()}.jpg`;
+      const { error } = await sb.storage.from("avatares").upload(ruta, foto, { contentType: "image/jpeg" });
+      if (error) throw new Error("No se ha podido subir la foto");
+      return sb.storage.from("avatares").getPublicUrl(ruta).data.publicUrl;
+    },
     pedirIgual: (id, nombre, copias, notas) => rpc("crear_pedido", { p: { copia_de: id, nombre, copias, notas } }),
     marcarVisita: async () => {
       await sb.rpc("marcar_visita", {});

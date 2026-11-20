@@ -62,7 +62,7 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
       <div className="tarjeta-cuerpo">
         <div className="tarjeta-titulo">{p.titulo || dominio(p.url)}</div>
         <div className="tarjeta-quien">
-          <Avatar nombre={p.nombre} size={22} />
+          <Avatar nombre={p.nombre} size={22} uid={p.user_id} />
           <span>{p.nombre}</span>
           <span className="sep">·</span>
           <span>{hace(p.creado)}</span>
@@ -140,7 +140,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
               <div style={{ minWidth: 0 }}>
                 <h2>{p.titulo || dominio(p.url)}</h2>
                 <div className="tarjeta-quien">
-                  <Avatar nombre={p.nombre} size={24} />
+                  <Avatar nombre={p.nombre} size={24} uid={p.user_id} />
                   <span>{p.nombre}</span>
                   <span className="sep">·</span>
                   <span>{fechaLarga(p.creado)}</span>

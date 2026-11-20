@@ -188,7 +188,7 @@ function Cuentas() {
       <AnimatePresence initial={false}>
         {visibles.map((c, i) => (
           <motion.div key={c.id} className="cuenta-fila" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: Math.min(i * 0.04, 0.3), ease }}>
-            <Avatar nombre={c.nombre} size={38} />
+            <Avatar nombre={c.nombre} size={38} uid={c.id} />
             <div className="cuenta-txt">
               <strong>{c.nombre}</strong>
               <span>{c.email}</span>

@@ -68,7 +68,7 @@ export function apiLocal(): Api {
     cuentas: false,
     async cargar() {
       const d = leer();
-      return { ajustes: d.ajustes, filamentos: d.filamentos, pedidos: d.pedidos, votos: d.votos || [], guardados: d.guardados || [] };
+      return { ajustes: d.ajustes, filamentos: d.filamentos, pedidos: d.pedidos, votos: d.votos || [], guardados: [...new Set((d.listas || []).map((x) => x.pedido_id))], listas: d.listas || [], perfiles: {} };
     },
     escuchar(cb) {
       oyentes.add(cb);
@@ -161,12 +161,28 @@ export function apiLocal(): Api {
       return !ya;
     },
     async guardar(id) {
+      return this.guardarEn!(id, "Guardados");
+    },
+    async guardarEn(id, lista) {
       const d = leer();
-      const g = d.guardados || [];
-      const ya = g.includes(id);
-      d.guardados = ya ? g.filter((x) => x !== id) : [...g, id];
+      const l = d.listas || [];
+      const ya = l.some((x) => x.pedido_id === id && x.lista === lista);
+      d.listas = ya ? l.filter((x) => !(x.pedido_id === id && x.lista === lista)) : [...l, { pedido_id: id, lista }];
+      d.guardados = [...new Set(d.listas.map((x) => x.pedido_id))];
       guardar(d);
       return !ya;
+    },
+    async renombrarLista(lista, nueva) {
+      const d = leer();
+      const l = (d.listas || []).map((x) => (x.lista === lista ? { ...x, lista: nueva.trim() } : x));
+      d.listas = l.filter((x, i) => l.findIndex((y) => y.pedido_id === x.pedido_id && y.lista === x.lista) === i);
+      guardar(d);
+    },
+    async borrarLista(lista) {
+      const d = leer();
+      d.listas = (d.listas || []).filter((x) => x.lista !== lista);
+      d.guardados = [...new Set(d.listas.map((x) => x.pedido_id))];
+      guardar(d);
     },
     async pedirIgual(id, nombre, copias, notas) {
       const d = leer();

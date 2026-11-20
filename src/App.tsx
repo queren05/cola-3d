@@ -10,6 +10,7 @@ import { Gente } from "./pages/Gente";
 import { Pedir } from "./pages/Pedir";
 import { Taller } from "./pages/Taller";
 import { Vitrina } from "./pages/Vitrina";
+import { Perfil } from "./pages/Perfil";
 import { useDatos, useRuta } from "./lib/store";
 
 const SECCIONES = [
@@ -25,7 +26,7 @@ export default function App() {
   const [ruta, ir] = useRuta();
   const { datos, toasts, api, esAdmin, sesion, api: { cuentas } } = useDatos();
   const secciones = SECCIONES.filter((s) => s.id !== "taller" || esAdmin || !cuentas);
-  const seccion = SECCIONES.some((s) => s.id === ruta[0]) ? ruta[0] : "";
+  const seccion = SECCIONES.some((s) => s.id === ruta[0]) || ruta[0] === "perfil" ? ruta[0] : "";
   const [abierto, setAbierto] = useState<string | null>(null);
   const abiertoRef = useRef<string | null>(null);
   abiertoRef.current = abierto;
@@ -55,6 +56,9 @@ export default function App() {
   switch (seccion) {
     case "pedir":
       pagina = <Pedir ir={ir} />;
+      break;
+    case "perfil":
+      pagina = <Perfil ir={ir} abrir={abrir} />;
       break;
     case "vitrina":
       pagina = <Vitrina abrir={abrir} />;

@@ -522,3 +522,91 @@ do $$
 begin
   begin alter publication supabase_realtime add table public.votos; exception when others then null; end;
 end $$;
+
+-- ---------- perfiles: foto y nombre que ven todos ----------
+create table if not exists public.perfiles (
+  user_id uuid primary key references auth.users on delete cascade,
+  nombre text not null default '',
+  avatar text not null default '',
+  actualizado timestamptz not null default now()
+);
+alter table public.perfiles enable row level security;
+drop policy if exists leer on public.perfiles;
+create policy leer on public.perfiles for select using (true);
+grant select on public.perfiles to anon, authenticated;
+
+-- cambia tu nombre (también en tus pedidos y en tu cuenta) y tu foto
+create or replace function public.guardar_perfil(p_nombre text, p_avatar text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare v_nombre text := left(trim(coalesce(p_nombre, '')), 40); v_avatar text := left(trim(coalesce(p_avatar, '')), 600);
+begin
+  if auth.uid() is null then raise exception 'Entra con tu cuenta'; end if;
+  if v_nombre = '' then raise exception 'Pon un nombre'; end if;
+  if v_avatar <> '' and v_avatar not like 'https://%' then v_avatar := ''; end if;
+  insert into public.perfiles (user_id, nombre, avatar, actualizado) values (auth.uid(), v_nombre, v_avatar, now())
+  on conflict (user_id) do update set nombre = excluded.nombre, avatar = excluded.avatar, actualizado = now();
+  update auth.users set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('nombre', v_nombre) where id = auth.uid();
+  update public.pedidos set nombre = v_nombre where user_id = auth.uid() and nombre <> v_nombre;
+end $$;
+grant execute on function public.guardar_perfil(text, text) to authenticated;
+
+-- fotos de perfil: cada uno sube las suyas en su carpeta
+insert into storage.buckets (id, name, public) values ('avatares', 'avatares', true) on conflict (id) do nothing;
+drop policy if exists "avatar propio sube" on storage.objects;
+drop policy if exists "avatar propio borra" on storage.objects;
+create policy "avatar propio sube" on storage.objects for insert to authenticated
+  with check (bucket_id = 'avatares' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatar propio borra" on storage.objects for delete to authenticated
+  using (bucket_id = 'avatares' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- listas de guardados ----------
+alter table public.guardados add column if not exists lista text not null default 'Guardados';
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'guardados_pkey'
+             and array_length(conkey, 1) = 2) then
+    alter table public.guardados drop constraint guardados_pkey;
+    alter table public.guardados add constraint guardados_pkey primary key (pedido_id, user_id, lista);
+  end if;
+end $$;
+
+-- mete o saca una pieza de una lista; devuelve true si ahora está
+create or replace function public.guardar_en(p_id uuid, p_lista text) returns boolean
+language plpgsql security definer set search_path = public, extensions as $$
+declare v_lista text := left(trim(coalesce(nullif(p_lista, ''), 'Guardados')), 40);
+begin
+  if auth.uid() is null then raise exception 'Entra con tu cuenta para guardar'; end if;
+  delete from public.guardados where pedido_id = p_id and user_id = auth.uid() and lista = v_lista;
+  if found then return false; end if;
+  insert into public.guardados (pedido_id, user_id, lista) values (p_id, auth.uid(), v_lista);
+  return true;
+end $$;
+
+create or replace function public.renombrar_lista(p_lista text, p_nueva text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare v_nueva text := left(trim(coalesce(p_nueva, '')), 40);
+begin
+  if auth.uid() is null then raise exception 'Entra con tu cuenta'; end if;
+  if v_nueva = '' then raise exception 'Pon un nombre a la lista'; end if;
+  -- si ya existe la de destino, se juntan
+  insert into public.guardados (pedido_id, user_id, lista, creado)
+    select pedido_id, user_id, v_nueva, creado from public.guardados where user_id = auth.uid() and lista = p_lista
+  on conflict do nothing;
+  delete from public.guardados where user_id = auth.uid() and lista = p_lista and p_lista <> v_nueva;
+end $$;
+
+create or replace function public.borrar_lista(p_lista text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if auth.uid() is null then raise exception 'Entra con tu cuenta'; end if;
+  delete from public.guardados where user_id = auth.uid() and lista = p_lista;
+end $$;
+
+-- guardar(p_id) de antes: la lista «Guardados»
+create or replace function public.guardar(p_id uuid) returns boolean
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  return public.guardar_en(p_id, 'Guardados');
+end $$;
+
+grant execute on function public.guardar_en(uuid, text), public.renombrar_lista(text, text), public.borrar_lista(text) to authenticated;

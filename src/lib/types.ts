@@ -159,8 +159,12 @@ export interface Datos {
   pedidos: Pedido[];
   /** me gusta de la vitrina: quién (cuenta) y qué pieza */
   votos?: { pedido_id: string; user_id: string }[];
-  /** piezas que tú has guardado */
+  /** piezas que tú has guardado (en cualquier lista) */
   guardados?: string[];
+  /** tus listas de guardados: qué pieza en qué lista */
+  listas?: { pedido_id: string; lista: string }[];
+  /** foto y nombre de cada cuenta */
+  perfiles?: Record<string, { nombre: string; avatar: string }>;
 }
 
 export interface Sesion {
@@ -184,6 +188,14 @@ export interface Api {
   votar?(id: string): Promise<boolean>;
   /** guardar / quitar de guardados; devuelve cómo queda */
   guardar?(id: string): Promise<boolean>;
+  /** mete o saca una pieza de una lista; devuelve si ahora está */
+  guardarEn?(id: string, lista: string): Promise<boolean>;
+  renombrarLista?(lista: string, nueva: string): Promise<void>;
+  borrarLista?(lista: string): Promise<void>;
+  /** cambia tu nombre y tu foto */
+  guardarPerfil?(nombre: string, avatar: string): Promise<void>;
+  /** sube tu foto de perfil y devuelve su dirección */
+  subirAvatar?(foto: Blob): Promise<string>;
   /** pide una pieza de la vitrina tal cual */
   pedirIgual?(id: string, nombre: string, copias: number, notas: string): Promise<{ id: string; token: string }>;
   /** cuentas creadas y cuándo han entrado (solo el taller) */
