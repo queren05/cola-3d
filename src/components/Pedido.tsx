@@ -189,7 +189,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
             <Compartir p={p} />
 
             {(esAdmin || !!p.fotos?.length) && (
-              <Fotos p={p} puede={esAdmin && clave !== null && !!api.subirFoto} guardar={(fotos) => api.adminPedido(clave ?? "", p.id, { fotos })} />
+              <Fotos p={p} puede={esAdmin && clave !== null && !!api.subirFoto} guardar={async (fotos) => { await api.adminPedido(clave ?? "", p.id, { fotos }); await recargar(); }} />
             )}
 
             {/* línea de estados */}

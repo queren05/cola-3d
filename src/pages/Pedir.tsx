@@ -45,7 +45,7 @@ function nombreColor(hex: string): string {
 }
 
 export function Pedir({ ir }: { ir: (r: string) => void }) {
-  const { api, datos, yo, setYo, sesion, guardarToken, aviso, setResaltado, esAdmin } = useDatos();
+  const { api, datos, yo, setYo, sesion, guardarToken, aviso, setResaltado, esAdmin, recargar } = useDatos();
   const filamentos = datos.filamentos.filter((f) => f.activo);
   const [nombre, setNombre] = useState(yo);
   const [urlTxt, setUrlTxt] = useState("");
@@ -190,6 +190,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
         minutos, copias, notas: [notas.trim(), ...lineas.filter((l) => l.cambio && num(l.txt) > 0).map((l) => l.cambio)].filter(Boolean).join("\n"),
       });
       guardarToken(r.id, r.token);
+      // la cola se actualiza al momento, sin esperar al aviso del servidor
+      await recargar();
       setHecho(true);
       setTimeout(() => {
         setResaltado(r.id);
