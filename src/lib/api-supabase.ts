@@ -81,6 +81,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     adminBorrarPedido: (clave, id) => rpc("admin_borrar_pedido", { p_clave: clave, p_id: id }),
     adminCrearPieza: (clave, p) => rpc<string>("admin_crear_pieza", { p_clave: clave, p }),
     adminCuentas: (clave) => rpc<Cuenta[]>("admin_cuentas", { p_clave: clave }),
+    adminRenombrar: (clave, userId, nombre) => rpc("admin_renombrar", { p_clave: clave, p_user: userId, p_nombre: nombre }),
     votar: (id) => rpc<boolean>("votar", { p_id: id }),
     guardar: (id) => rpc<boolean>("guardar", { p_id: id }),
     guardarEn: (id, lista) => rpc<boolean>("guardar_en", { p_id: id, p_lista: lista }),

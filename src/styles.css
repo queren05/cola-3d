@@ -731,7 +731,7 @@ button.quien:not(:has(.avatar)) { padding: 0 14px; background: var(--hot); color
 /* cuentas (taller) */
 .cuentas { display: flex; flex-direction: column; gap: 10px; }
 .cuentas-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-.cuenta-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); }
+.cuenta-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); }
 .cuenta-fila.esqueleto { height: 58px; background: linear-gradient(100deg, var(--surface-2) 30%, var(--line) 50%, var(--surface-2) 70%) 0 0 / 300% 100%; animation: brillar 1.3s linear infinite; }
 .cuenta-txt { display: flex; flex-direction: column; min-width: 0; }
 .cuenta-txt strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

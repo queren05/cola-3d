@@ -169,7 +169,7 @@ function Panel() {
 
 /** quién se ha hecho cuenta y cuándo ha entrado (aunque no haya pedido nada) */
 function Cuentas() {
-  const { api, clave, datos } = useDatos();
+  const { api, clave, datos, aviso, recargar } = useDatos();
   const [lista, setLista] = useState<Cuenta[] | null>(null);
   const [fallo, setFallo] = useState("");
   const [todas, setTodas] = useState(false);
@@ -178,6 +178,18 @@ function Cuentas() {
     api.adminCuentas(clave).then(setLista).catch((e) => setFallo(e instanceof Error ? e.message : "No se han podido leer"));
   }, [api, clave, datos.pedidos.length]);
   if (!api.adminCuentas) return null;
+  async function renombrar(c: Cuenta) {
+    const n = prompt(`Nuevo nombre para ${c.nombre}`, c.nombre)?.trim();
+    if (!n || n === c.nombre || !api.adminRenombrar || clave === null) return;
+    try {
+      await api.adminRenombrar(clave, c.id, n);
+      setLista((l) => l?.map((x) => (x.id === c.id ? { ...x, nombre: n } : x)) ?? null);
+      await recargar();
+      aviso(`Ahora se llama ${n}`);
+    } catch (e) {
+      aviso(e instanceof Error ? e.message : "No se ha podido cambiar", "error");
+    }
+  }
   const hoy = (lista || []).filter((c) => c.ultima && Date.now() - new Date(c.ultima).getTime() < 864e5).length;
   const visibles = todas ? lista || [] : (lista || []).slice(0, 8);
   return (
@@ -196,6 +208,11 @@ function Cuentas() {
               <strong>{c.nombre}</strong>
               <span>{c.email}</span>
             </div>
+            {api.adminRenombrar && (
+              <button className="cerrar-mini" title="Cambiar nombre" aria-label={`Cambiar el nombre de ${c.nombre}`} onClick={() => renombrar(c)}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" /></svg>
+              </button>
+            )}
             <div className="cuenta-datos">
               <span className={c.ultima && Date.now() - new Date(c.ultima).getTime() < 864e5 ? "reciente" : ""}>{c.ultima ? hace(c.ultima) : c.confirmada ? "Sin entrar" : "Sin confirmar"}</span>
               <small>{c.veces} {c.veces === 1 ? "visita" : "visitas"} · {c.pedidos} {c.pedidos === 1 ? "pedido" : "pedidos"}</small>

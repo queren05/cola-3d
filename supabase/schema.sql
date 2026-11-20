@@ -612,3 +612,18 @@ begin
 end $$;
 
 grant execute on function public.guardar_en(uuid, text), public.renombrar_lista(text, text), public.borrar_lista(text) to authenticated;
+
+-- el taller cambia el nombre de una cuenta (en la cuenta, su perfil y sus pedidos)
+create or replace function public.admin_renombrar(p_clave text, p_user uuid, p_nombre text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare v text := left(trim(coalesce(p_nombre, '')), 40);
+begin
+  perform public._exigir_admin(p_clave);
+  if v = '' then raise exception 'Pon un nombre'; end if;
+  update auth.users set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('nombre', v) where id = p_user;
+  if not found then raise exception 'Esa cuenta no existe'; end if;
+  insert into public.perfiles (user_id, nombre) values (p_user, v)
+  on conflict (user_id) do update set nombre = excluded.nombre, actualizado = now();
+  update public.pedidos set nombre = v where user_id = p_user;
+end $$;
+grant execute on function public.admin_renombrar(text, uuid, text) to anon, authenticated;

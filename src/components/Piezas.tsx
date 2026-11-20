@@ -23,35 +23,27 @@ export function Numero({ valor, formato = eur }: { valor: number; formato?: (v: 
 
 /** bobina de filamento: el anillo exterior es lo que queda */
 export function Bobina({ color, fraccion, size = 64, girar = false }: { color: string; fraccion: number; size?: number; girar?: boolean }) {
+  // como un carrete de verdad: cuanto menos queda, más fina es la capa de hilo enrollado (sin huecos ni rayas)
   const f = Math.min(1, Math.max(0, fraccion));
-  const r = 26, c = 2 * Math.PI * r;
+  const dentro = 13.5, fuera = 29;
+  const borde = f > 0 ? dentro + Math.max(1.6, (fuera - dentro) * f) : dentro;
+  const r = (dentro + borde) / 2, ancho = borde - dentro;
+  const t = { duration: 0.9, ease: [0.22, 1, 0.36, 1] as const };
   return (
     <motion.svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" animate={girar ? { rotate: 360 } : undefined} transition={girar ? { repeat: Infinity, duration: 6, ease: "linear" } : undefined}>
-      <circle cx="32" cy="32" r="30" fill="var(--spool)" stroke="var(--swatch-ring)" strokeWidth=".8" />
-      <circle cx="32" cy="32" r={r} fill="none" stroke="var(--spool-track)" strokeWidth="9" />
-      <motion.circle
-        cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="9" strokeLinecap="butt"
-        transform="rotate(-90 32 32)"
-        strokeDasharray={c}
-        initial={{ strokeDashoffset: c }}
-        animate={{ strokeDashoffset: c * (1 - f) }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-      />
-      {/* borde fino del hilo: así se ve también un filamento negro sobre fondo oscuro (o blanco sobre claro) */}
-      {[r + 4.5, r - 4.5].map((rr) => (
-        <motion.circle
-          key={rr}
-          cx="32" cy="32" r={rr} fill="none" stroke="var(--swatch-ring)" strokeWidth=".9"
-          transform="rotate(-90 32 32)"
-          strokeDasharray={2 * Math.PI * rr}
-          initial={{ strokeDashoffset: 2 * Math.PI * rr }}
-          animate={{ strokeDashoffset: 2 * Math.PI * rr * (1 - f) }}
-          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        />
-      ))}
-      {/* líneas del hilo enrollado */}
-      <circle cx="32" cy="32" r={r - 2.5} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth=".8" strokeDasharray={f > 0 ? "2 2" : "0"} />
-      <circle cx="32" cy="32" r="12" fill="var(--spool-hub)" />
+      <circle cx="32" cy="32" r="30.5" fill="var(--spool)" stroke="var(--swatch-ring)" strokeWidth=".8" />
+      <circle cx="32" cy="32" r={(dentro + fuera) / 2} fill="none" stroke="var(--spool-track)" strokeWidth={fuera - dentro} />
+      {f > 0 && (
+        <>
+          <motion.circle cx="32" cy="32" fill="none" stroke={color} initial={{ r: dentro, strokeWidth: 0 }} animate={{ r, strokeWidth: ancho }} transition={t} />
+          {/* borde fino del hilo: así se ve también un filamento negro sobre fondo oscuro (o blanco sobre claro) */}
+          <motion.circle cx="32" cy="32" fill="none" stroke="var(--swatch-ring)" strokeWidth=".9" initial={{ r: dentro }} animate={{ r: borde }} transition={t} />
+          {/* vueltas del hilo */}
+          {ancho > 5 && <motion.circle cx="32" cy="32" fill="none" stroke="rgba(255,255,255,.16)" strokeWidth=".7" strokeDasharray="2 2" initial={{ r: dentro }} animate={{ r: dentro + ancho * 0.66 }} transition={t} />}
+          {ancho > 9 && <motion.circle cx="32" cy="32" fill="none" stroke="rgba(0,0,0,.14)" strokeWidth=".7" strokeDasharray="2 2" initial={{ r: dentro }} animate={{ r: dentro + ancho * 0.33 }} transition={t} />}
+        </>
+      )}
+      <circle cx="32" cy="32" r="12" fill="var(--spool-hub)" stroke="var(--swatch-ring)" strokeWidth=".6" />
       <circle cx="32" cy="32" r="5" fill="var(--bg)" />
       {[0, 120, 240].map((a) => (
         <rect key={a} x="30.5" y="21" width="3" height="5" rx="1" fill="var(--bg)" transform={`rotate(${a} 32 32)`} />

@@ -200,6 +200,8 @@ export interface Api {
   subirAvatar?(foto: Blob): Promise<string>;
   /** pide una pieza de la vitrina tal cual */
   pedirIgual?(id: string, nombre: string, copias: number, notas: string): Promise<{ id: string; token: string }>;
+  /** el taller cambia el nombre de una cuenta */
+  adminRenombrar?(clave: string, userId: string, nombre: string): Promise<void>;
   /** cuentas creadas y cuándo han entrado (solo el taller) */
   adminCuentas?(clave: string): Promise<Cuenta[]>;
   /** apunta que has entrado (con la sesión iniciada) */
