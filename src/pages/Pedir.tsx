@@ -19,6 +19,10 @@ interface LineaForm extends Linea {
   falta?: Falta;
   /** a qué se ha cambiado, o que lo elija el taller */
   cambio?: string;
+  /** cómo venía en el perfil (para deshacer) */
+  orig?: { filamento_id: string | null; nombre: string; color: string; falta?: Falta };
+  /** el color que pide el modelo (para el texto) */
+  pide?: string;
 }
 
 /** «#ff0000» → nombre aproximado para la nota */
@@ -102,16 +106,27 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   // con los perfiles a mano: hace falta uno que valga para la A1 mini
   const sinPerfil = mw && perfiles.length > 0 && !perfiles.some((p) => p.a1mini);
   const perfilMalo = perfiles.find((p) => p.id === perfilId && !p.a1mini);
-  const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && det.gramos > 0 && sinResolver.length === 0;
+  // con perfil de MakerWorld, los gramos y el tiempo los marca el perfil: solo se cambia el color de cada parte
+  const bloqueado = !!perfilId && perfiles.some((p) => p.id === perfilId);
+  const necesitaPerfil = !!api.vistaPrevia && !bloqueado;
+  const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && !necesitaPerfil && det.gramos > 0 && sinResolver.length === 0;
   const nColores = lineasCalc.filter((l) => l.gramos > 0).length;
   const esPeticion = nColores > 4;
-  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
+  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : necesitaPerfil ? (buscando ? "Leyendo el modelo…" : "Elige un perfil") : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
 
 
   function aplicar(p: Perfil) {
     setPerfilId(p.id);
     const ls = lineasDePerfil(p, filamentosRef.current);
-    setLineas(ls.map((l, i) => ({ ...l, key: l.filamento_id || `perfil-${i}`, txt: String(l.gramos).replace(".", ",") })));
+    setLineas(
+      ls.map((l, i) => ({
+        ...l,
+        key: `perfil-${i}`,
+        txt: String(l.gramos).replace(".", ","),
+        orig: { filamento_id: l.filamento_id, nombre: l.nombre, color: l.color, falta: l.falta },
+        pide: l.falta ? `${l.falta.material} ${nombreColor(l.falta.color)}` : l.nombre,
+      })),
+    );
     const m = minutosA1mini(p);
     setHoras(m >= 60 ? String(Math.floor(m / 60)) : "");
     setMins(m % 60 ? String(m % 60) : "");
@@ -131,10 +146,30 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
     setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, filamento_id: f.id, nombre: f.nombre, color: f.color, falta: x.falta || { color: x.color, material: "" }, cambio: `Cambio ${descr(x)} por ${f.nombre} (${f.material})` } : x)));
   }
   function queElija(l: LineaForm) {
-    setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, cambio: `${descr(x)}: que lo elija el taller` } : x)));
+    setLineas((ls) =>
+      ls.map((x) =>
+        x.key === l.key
+          ? { ...x, filamento_id: null, nombre: x.orig?.falta?.material || x.nombre, color: x.orig?.falta?.color || x.orig?.color || x.color, cambio: `${x.pide || descr(x)}: que lo elija el taller` }
+          : x,
+      ),
+    );
   }
   function deshacer(l: LineaForm) {
-    setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, filamento_id: null, nombre: x.falta?.material || x.nombre, color: x.falta?.color || x.color, cambio: undefined } : x)));
+    setLineas((ls) =>
+      ls.map((x) =>
+        x.key !== l.key ? x : x.orig ? { ...x, filamento_id: x.orig.filamento_id, nombre: x.orig.nombre, color: x.orig.color, falta: x.orig.falta, cambio: undefined }
+          : { ...x, filamento_id: null, nombre: x.falta?.material || x.nombre, color: x.falta?.color || x.color, cambio: undefined },
+      ),
+    );
+  }
+  /** desplegable de cada color del perfil: otro rollo, el original o que lo elija el taller */
+  function elegirRollo(l: LineaForm, v: string) {
+    if (v === "orig") return deshacer(l);
+    if (v === "taller") return queElija(l);
+    const f = filamentos.find((x) => x.id === v);
+    if (!f) return;
+    if (l.orig && l.orig.filamento_id === f.id) return deshacer(l);
+    setLineas((ls) => ls.map((x) => (x.key === l.key ? { ...x, filamento_id: f.id, nombre: f.nombre, color: f.color, cambio: `Cambio ${x.pide || descr(x)} por ${f.nombre} (${f.material})` } : x)));
   }
 
   function otroColor() {
@@ -264,7 +299,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
 
           <fieldset className="campo">
             <legend>Colores</legend>
-            {filamentos.length > 0 && (
+            {filamentos.length > 0 && !bloqueado && (
               <div className="colores-elegir">
                 {filamentos.map((f) => {
                   const sel = lineas.some((l) => l.filamento_id === f.id);
@@ -308,6 +343,29 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
               <AnimatePresence initial={false}>
                 {lineas.map((l) => (
                   <motion.div key={l.key} className="linea-caja" layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.3, ease }}>
+                  {bloqueado ? (
+                    <div className="linea bloqueada">
+                      <span className="linea-sel" style={{ ["--fil" as string]: l.color }}>
+                        <Muestra color={l.color} size={18} />
+                        <select
+                          aria-label={`Color para ${l.pide || l.nombre}`}
+                          value={l.filamento_id || (l.cambio ? "taller" : "orig")}
+                          onChange={(e) => elegirRollo(l, e.target.value)}
+                        >
+                          {!l.orig?.filamento_id && <option value="orig" disabled>{l.pide || l.nombre}: no lo tengo</option>}
+                          {[...new Set(filamentos.filter((f) => f.stock_g >= 50).map((f) => f.material.toUpperCase()))].sort().map((m) => (
+                            <optgroup key={m} label={m}>
+                              {filamentos.filter((f) => f.stock_g >= 50 && f.material.toUpperCase() === m).map((f) => (
+                                <option key={f.id} value={f.id}>{f.nombre}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                          <option value="taller">Que lo elija el taller</option>
+                        </select>
+                      </span>
+                      <span className="linea-fija num" title="Lo marca el perfil de MakerWorld">{l.txt} g</span>
+                    </div>
+                  ) : (
                   <div className="linea">
                     {l.filamento_id ? (
                       <EtiquetaColor nombre={l.nombre} color={l.color} />
@@ -327,6 +385,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                       </button>
                     )}
                   </div>
+                  )}
                   <AnimatePresence initial={false}>
                     {filamentos.length > 0 && !l.filamento_id && !l.cambio && num(l.txt) > 0 && (
                       <motion.div key="aviso" className="aviso-color" role="alert" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease }}>
@@ -368,8 +427,8 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
             <div className="campo">
               <span>Tiempo de impresión</span>
               <div className="duo">
-                <span className="con-unidad"><input className="num" inputMode="numeric" aria-label="Horas" placeholder="0" value={horas} onChange={(e) => setHoras(e.target.value)} /><span className="unidad">h</span></span>
-                <span className="con-unidad"><input className="num" inputMode="numeric" aria-label="Minutos" placeholder="0" value={mins} onChange={(e) => setMins(e.target.value)} /><span className="unidad">min</span></span>
+                <span className="con-unidad"><input className="num" inputMode="numeric" aria-label="Horas" placeholder="0" value={horas} onChange={(e) => setHoras(e.target.value)} readOnly={bloqueado} /><span className="unidad">h</span></span>
+                <span className="con-unidad"><input className="num" inputMode="numeric" aria-label="Minutos" placeholder="0" value={mins} onChange={(e) => setMins(e.target.value)} readOnly={bloqueado} /><span className="unidad">min</span></span>
               </div>
             </div>
             <div className="campo">
