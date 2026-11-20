@@ -88,19 +88,39 @@ export function EtiquetaColor({ nombre, color }: { nombre: string; color: string
 
 /** impresora dibujando capas: pieza que crece y boquilla que va y viene */
 export function Impresora({ size = 56 }: { size?: number }) {
+  // capas que se van imprimiendo una a una; al final se desvanecen juntas, sin parpadeos
+  const N = 6, CICLO = 7.2;
+  const inicio = (i: number) => 0.06 + i * 0.12;
   return (
     <svg className="impresora" width={size} height={size} viewBox="0 0 56 56" aria-hidden="true">
       <rect x="6" y="6" width="44" height="44" rx="7" fill="none" stroke="currentColor" strokeWidth="2.2" opacity=".35" />
       <rect x="10" y="42" width="36" height="3" rx="1.5" fill="currentColor" opacity=".5" />
-      <g className="capas">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <rect key={i} x={18 + (i % 2)} y={38 - i * 3.2} width={20 - (i % 2) * 2} height="2.6" rx="1" fill="var(--hot)" style={{ animationDelay: `${i * 0.45}s` }} />
+      <g>
+        {Array.from({ length: N }).map((_, i) => (
+          <motion.rect
+            key={i}
+            x={18 + (i % 2)}
+            y={38 - i * 3.2}
+            width={20 - (i % 2) * 2}
+            height="2.6"
+            rx="1"
+            fill="var(--hot)"
+            style={{ transformBox: "fill-box", transformOrigin: "left center" }}
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: [0, 0, 1, 1, 1], opacity: [0, 0, 1, 1, 0] }}
+            transition={{ duration: CICLO, times: [0, inicio(i), inicio(i) + 0.1, 0.86, 0.98], ease: "easeInOut", repeat: Infinity }}
+          />
         ))}
       </g>
-      <g className="boquilla">
-        <rect x="22" y="10" width="12" height="7" rx="2" fill="currentColor" />
-        <path d="M26 17h4l-2 3z" fill="currentColor" />
-      </g>
+      <motion.g
+        animate={{ y: [0, 0, -16, -16, 0] }}
+        transition={{ duration: CICLO, times: [0, 0.06, 0.82, 0.88, 1], ease: "easeInOut", repeat: Infinity }}
+      >
+        <g className="boquilla">
+          <rect x="22" y="10" width="12" height="7" rx="2" fill="currentColor" />
+          <path d="M26 17h4l-2 3z" fill="currentColor" />
+        </g>
+      </motion.g>
     </svg>
   );
 }

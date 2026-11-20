@@ -68,7 +68,7 @@ export function apiLocal(): Api {
     cuentas: false,
     async cargar() {
       const d = leer();
-      return { ajustes: d.ajustes, filamentos: d.filamentos, pedidos: d.pedidos };
+      return { ajustes: d.ajustes, filamentos: d.filamentos, pedidos: d.pedidos, votos: d.votos || [], guardados: d.guardados || [] };
     },
     escuchar(cb) {
       oyentes.add(cb);
@@ -149,6 +149,29 @@ export function apiLocal(): Api {
         p.historial = [...p.historial, { estado: c.estado, fecha: p.actualizado }];
       }
       guardar(d);
+    },
+    // en modo prueba los me gusta y guardados son de este navegador
+    async votar(id) {
+      const d = leer();
+      const v = d.votos || [];
+      const ya = v.some((x) => x.pedido_id === id && x.user_id === "yo");
+      d.votos = ya ? v.filter((x) => !(x.pedido_id === id && x.user_id === "yo")) : [...v, { pedido_id: id, user_id: "yo" }];
+      guardar(d);
+      return !ya;
+    },
+    async guardar(id) {
+      const d = leer();
+      const g = d.guardados || [];
+      const ya = g.includes(id);
+      d.guardados = ya ? g.filter((x) => x !== id) : [...g, id];
+      guardar(d);
+      return !ya;
+    },
+    async pedirIgual(id, nombre, copias, notas) {
+      const d = leer();
+      const o = d.pedidos.find((x) => x.id === id);
+      if (!o) throw new Error("Esa pieza ya no está en la vitrina");
+      return this.crearPedido({ nombre, url: o.url || "https://makerworld.com/", titulo: o.titulo, imagen: o.imagen || o.fotos?.[0] || "", lineas: o.lineas.length ? o.lineas : [{ filamento_id: null, nombre: "PLA", color: "#999999", gramos: 1 }], minutos: o.minutos, copias, notas });
     },
     async adminCrearPieza(clave, n) {
       const d = await admin(clave);

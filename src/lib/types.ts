@@ -155,6 +155,10 @@ export interface Datos {
   ajustes: Ajustes;
   filamentos: Filamento[];
   pedidos: Pedido[];
+  /** me gusta de la vitrina: quién (cuenta) y qué pieza */
+  votos?: { pedido_id: string; user_id: string }[];
+  /** piezas que tú has guardado */
+  guardados?: string[];
 }
 
 export interface Sesion {
@@ -174,6 +178,12 @@ export interface Api {
   comprobarClave(clave: string): Promise<boolean>;
   adminPedido(clave: string, id: string, cambios: CambiosPedido): Promise<void>;
   adminBorrarPedido(clave: string, id: string): Promise<void>;
+  /** me gusta / quitar el me gusta; devuelve cómo queda */
+  votar?(id: string): Promise<boolean>;
+  /** guardar / quitar de guardados; devuelve cómo queda */
+  guardar?(id: string): Promise<boolean>;
+  /** pide una pieza de la vitrina tal cual */
+  pedirIgual?(id: string, nombre: string, copias: number, notas: string): Promise<{ id: string; token: string }>;
   /** cuentas creadas y cuándo han entrado (solo el taller) */
   adminCuentas?(clave: string): Promise<Cuenta[]>;
   /** apunta que has entrado (con la sesión iniciada) */

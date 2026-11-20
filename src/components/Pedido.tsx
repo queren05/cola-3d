@@ -6,6 +6,7 @@ import { useDatos } from "../lib/store";
 import { ESTADOS, type Estado, type Linea, type Pedido } from "../lib/types";
 import { ICerrar, ICheck, IEnlace, IPapelera, IReloj } from "./Iconos";
 import { Avatar, Chip, colorEstado, Impresora, Muestra } from "./Piezas";
+import { BotonGuardar, BotonGusta } from "../pages/Vitrina";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -162,6 +163,8 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                 <IEnlace width={18} height={18} /> Abrir en {dominio(p.url)}
               </a>
             )}
+
+            {(p.estado === "impreso" || p.estado === "entregado") && <AccionesVitrina p={p} onCerrar={onCerrar} />}
 
             {(esAdmin || !!p.fotos?.length) && (
               <Fotos p={p} puede={esAdmin && clave !== null && !!api.subirFoto} guardar={(fotos) => api.adminPedido(clave ?? "", p.id, { fotos })} />
@@ -458,6 +461,54 @@ function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fot
           </motion.div>
         )}
       </AnimatePresence>, document.body)}
+    </div>
+  );
+}
+
+/** me gusta, guardar y pedir una igual (piezas ya impresas) */
+function AccionesVitrina({ p, onCerrar }: { p: Pedido; onCerrar: () => void }) {
+  const { api, datos, sesion, yo, aviso, guardarToken, recargar, setResaltado } = useDatos();
+  const [copias, setCopias] = useState(1);
+  const [ocupado, setOcupado] = useState(false);
+  const yoId = api.modo === "local" ? "yo" : sesion?.id;
+  const votos = (datos.votos || []).filter((v) => v.pedido_id === p.id);
+  const nombre = sesion?.nombre || yo;
+  async function pedir() {
+    if (!api.pedirIgual) return;
+    if (api.cuentas && !sesion) return aviso("Entra con tu cuenta para pedirla", "error");
+    if (!nombre.trim()) return aviso("Pon tu nombre en Pedir primero", "error");
+    setOcupado(true);
+    try {
+      const r = await api.pedirIgual(p.id, nombre, copias, `Igual que «${p.titulo || "la pieza"}» de ${p.nombre}`);
+      guardarToken(r.id, r.token);
+      await recargar();
+      setResaltado(r.id);
+      aviso("¡En la cola!");
+      onCerrar();
+      setTimeout(() => (location.hash = "#/"), 300);
+    } catch (e) {
+      aviso(e instanceof Error ? e.message : "No se ha podido pedir", "error");
+    } finally {
+      setOcupado(false);
+    }
+  }
+  return (
+    <div className="bloque">
+      <div className="vitrina-acciones">
+        <BotonGusta id={p.id} n={votos.length} mio={!!yoId && votos.some((v) => v.user_id === yoId)} puede={!!yoId} grande />
+        {!!yoId && <BotonGuardar id={p.id} guardada={(datos.guardados || []).includes(p.id)} grande />}
+      </div>
+      {api.pedirIgual && (
+        <div className="pedir-igual">
+          <p>¿Te gusta? Pide una igual</p>
+          <span className="contador">
+            <button type="button" onClick={() => setCopias((c) => Math.max(1, c - 1))} aria-label="Menos copias">−</button>
+            <span className="num">{copias}</span>
+            <button type="button" onClick={() => setCopias((c) => Math.min(20, c + 1))} aria-label="Más copias">+</button>
+          </span>
+          <button className="boton primario" disabled={ocupado} onClick={pedir}>{ocupado ? "Pidiendo…" : "Pedir igual"}</button>
+        </div>
+      )}
     </div>
   );
 }

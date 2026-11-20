@@ -29,7 +29,12 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
         : AJUSTES_DEFECTO;
       const filamentos = (f.data || []).map((x) => ({ ...x, precio: x.precio === null ? null : Number(x.precio), peso: num(x.peso), stock_g: num(x.stock_g) })) as Filamento[];
       const pedidos = (p.data || []).map((x) => ({ ...x, coste: num(x.coste) })) as Pedido[];
-      return { ajustes: aj, filamentos, pedidos };
+      // me gusta y guardados (si aún no existen las tablas, la web sigue funcionando)
+      const [v, g] = await Promise.all([
+        sb.from("votos").select("pedido_id,user_id"),
+        cuentas ? sb.from("guardados").select("pedido_id") : Promise.resolve({ data: [] as { pedido_id: string }[], error: null }),
+      ]);
+      return { ajustes: aj, filamentos, pedidos, votos: v.error ? [] : (v.data as Datos["votos"]) || [], guardados: g.error ? [] : (g.data || []).map((x) => x.pedido_id as string) };
     },
     escuchar(cb) {
       let t: ReturnType<typeof setTimeout> | undefined;
@@ -42,6 +47,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
         .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "filamentos" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "ajustes" }, aviso)
+        .on("postgres_changes", { event: "*", schema: "public", table: "votos" }, aviso)
         .subscribe();
       // por si el tiempo real se corta: refresco al volver a la pestaña
       const vis = () => document.visibilityState === "visible" && aviso();
@@ -69,6 +75,9 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     adminBorrarPedido: (clave, id) => rpc("admin_borrar_pedido", { p_clave: clave, p_id: id }),
     adminCrearPieza: (clave, p) => rpc<string>("admin_crear_pieza", { p_clave: clave, p }),
     adminCuentas: (clave) => rpc<Cuenta[]>("admin_cuentas", { p_clave: clave }),
+    votar: (id) => rpc<boolean>("votar", { p_id: id }),
+    guardar: (id) => rpc<boolean>("guardar", { p_id: id }),
+    pedirIgual: (id, nombre, copias, notas) => rpc("crear_pedido", { p: { copia_de: id, nombre, copias, notas } }),
     marcarVisita: async () => {
       await sb.rpc("marcar_visita", {});
     },
@@ -131,6 +140,8 @@ function traducir(m: string): string {
   if (/email not confirmed/i.test(m)) return "Confirma tu correo antes de entrar";
   if (/password.*(at least|characters)/i.test(m)) return "La contraseña necesita al menos 6 caracteres";
   if (/same.*password|different from the old/i.test(m)) return "Pon una contraseña distinta a la anterior";
+  if (/email rate limit/i.test(m)) return "Ahora mismo no se pueden mandar más correos. Prueba dentro de un rato";
+  if (/security purposes.*after (\d+) seconds/i.test(m)) return `Espera ${m.match(/after (\d+) seconds/i)![1]} segundos y vuelve a probar`;
   if (/rate limit|too many|security purposes/i.test(m)) return "Demasiados intentos, espera un poco";
   if (/invalid.*email|unable to validate email/i.test(m)) return "El correo no es válido";
   return m;

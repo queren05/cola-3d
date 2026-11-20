@@ -15,10 +15,45 @@ function disponibilidad(f: Filamento) {
   return { txt: "Disponible", cls: "ok" };
 }
 
+/** familia de color, para filtrar */
+export function familia(hex: string): string {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16) / 255, g = parseInt(m.slice(2, 4), 16) / 255, b = parseInt(m.slice(4, 6), 16) / 255;
+  if ([r, g, b].some(isNaN)) return "Otros";
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (l < 0.16) return "Negros";
+  if (l > 0.86 && s < 0.5) return "Blancos";
+  if (s < 0.18) return "Grises";
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  if (h < 15 || h >= 340) return l > 0.7 ? "Rosas" : "Rojos";
+  if (h < 40) return l < 0.4 ? "Marrones" : "Naranjas";
+  if (h < 70) return "Amarillos";
+  if (h < 170) return "Verdes";
+  if (h < 255) return "Azules";
+  if (h < 300) return "Morados";
+  return "Rosas";
+}
+
 export function Filamentos() {
   const { datos, esAdmin } = useDatos();
   const [editando, setEditando] = useState<Partial<Filamento> | null>(null);
-  const fils = [...datos.filamentos].filter((f) => esAdmin || f.activo).sort((a, b) => Number(b.activo) - Number(a.activo) || a.orden - b.orden);
+  const [q, setQ] = useState("");
+  const [material, setMaterial] = useState("");
+  const [fam, setFam] = useState("");
+  const [conStock, setConStock] = useState(false);
+  const [orden, setOrden] = useState<"estanteria" | "stock" | "nombre">("estanteria");
+  const todos = datos.filamentos.filter((f) => esAdmin || f.activo);
+  const materiales = [...new Set(todos.map((f) => f.material.trim().toUpperCase()))].sort();
+  const familias = [...new Set(todos.map((f) => familia(f.color)))].sort();
+  const filtrando = !!q || !!material || !!fam || conStock;
+  const fils = todos
+    .filter((f) => (!q || `${f.nombre} ${f.material}`.toLowerCase().includes(q.toLowerCase())) && (!material || f.material.trim().toUpperCase() === material) && (!fam || familia(f.color) === fam) && (!conStock || (f.activo && f.stock_g >= 50)))
+    .sort((a, b) =>
+      orden === "stock" ? b.stock_g - a.stock_g : orden === "nombre" ? a.nombre.localeCompare(b.nombre, "es") : Number(b.activo) - Number(a.activo) || a.orden - b.orden,
+    );
   const stock = datos.filamentos.filter((f) => f.activo).reduce((t, f) => t + f.stock_g, 0);
   const valor = datos.filamentos.filter((f) => f.activo).reduce((t, f) => t + (f.stock_g * (f.precio ?? datos.ajustes.precio_defecto)) / (f.peso || 1000), 0);
 
@@ -45,7 +80,33 @@ export function Filamentos() {
         </div>
       )}
 
-      {fils.length === 0 ? (
+      {todos.length > 1 && (
+        <div className="v-filtros">
+          <input className="buscador" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar color o material" aria-label="Buscar" autoComplete="off" />
+          <div className="v-chips">
+            {materiales.length > 1 && materiales.map((m) => (
+              <button key={m} className={`v-chip${material === m ? " activo" : ""}`} onClick={() => setMaterial((x) => (x === m ? "" : m))} aria-pressed={material === m}>{m}</button>
+            ))}
+            {familias.length > 1 && (
+              <select className={`v-chip${fam ? " activo" : ""}`} value={fam} onChange={(e) => setFam(e.target.value)} aria-label="Color">
+                <option value="">Todos los colores</option>
+                {familias.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            )}
+            <button className={`v-chip${conStock ? " activo" : ""}`} onClick={() => setConStock((v) => !v)} aria-pressed={conStock}>Solo con stock</button>
+            <select className="v-chip" value={orden} onChange={(e) => setOrden(e.target.value as typeof orden)} aria-label="Ordenar">
+              <option value="estanteria">Como en la estantería</option>
+              <option value="stock">Más cantidad primero</option>
+              <option value="nombre">Por nombre</option>
+            </select>
+            {filtrando && <button className="v-chip quitar" onClick={() => { setQ(""); setMaterial(""); setFam(""); setConStock(false); }}>Quitar filtros</button>}
+          </div>
+        </div>
+      )}
+
+      {fils.length === 0 && filtrando ? (
+        <Vacio titulo="Ningún rollo con estos filtros" icono={<IBobina width={48} height={48} />} />
+      ) : fils.length === 0 ? (
         <Vacio titulo="Todavía no hay filamentos" icono={<IBobina width={48} height={48} />}>
           {esAdmin && <button className="boton primario" onClick={() => setEditando({})}>Añadir el primero</button>}
         </Vacio>

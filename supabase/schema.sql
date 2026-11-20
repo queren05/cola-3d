@@ -206,18 +206,29 @@ declare
   v_lineas jsonb := public._lineas(p->'lineas');
   v_cop int := least(50, greatest(1, coalesce((p->>'copias')::int, 1)));
   v_min int := least(10000, greatest(0, coalesce((p->>'minutos')::int, 0)));
+  v_titulo text := left(coalesce(p->>'titulo', ''), 120);
+  v_imagen text := left(coalesce(p->>'imagen', ''), 600);
+  v_src public.pedidos;
   v_det jsonb; v_id uuid; v_tok text := encode(gen_random_bytes(18), 'hex');
 begin
   if v_uid is not null then
     select coalesce(nullif(left(trim(raw_user_meta_data->>'nombre'), 40), ''), v_nombre) into v_nombre from auth.users where id = v_uid;
   end if;
   if v_nombre = '' then raise exception 'Falta tu nombre'; end if;
-  if v_url !~* '^https?://([a-z0-9-]+\.)*makerworld\.com(\.cn)?/' then raise exception 'Solo modelos de MakerWorld con perfil de impresión'; end if;
+  -- «pedir igual»: se copia una pieza de la vitrina tal cual (modelo, perfil, colores y tiempo)
+  if nullif(p->>'copia_de', '') is not null then
+    select * into v_src from public.pedidos where id::text = p->>'copia_de' and estado in ('impreso', 'entregado');
+    if not found then raise exception 'Esa pieza ya no está en la vitrina'; end if;
+    v_url := v_src.url; v_lineas := v_src.lineas; v_min := v_src.minutos; v_titulo := v_src.titulo; v_imagen := v_src.imagen;
+    if v_imagen = '' and jsonb_array_length(v_src.fotos) > 0 then v_imagen := v_src.fotos->>0; end if;
+  elsif v_url !~* '^https?://([a-z0-9-]+\.)*makerworld\.com(\.cn)?/' then
+    raise exception 'Solo modelos de MakerWorld con perfil de impresión';
+  end if;
   v_det := public._coste(v_lineas, v_min, v_cop);
-  if (v_det->>'gramos')::numeric <= 0 then raise exception 'Faltan los gramos'; end if;
+  if (v_det->>'gramos')::numeric <= 0 and v_src.id is null then raise exception 'Faltan los gramos'; end if;
   v_det := public._aplicar_gratis(v_det, public._gratis_restante(v_uid, v_nombre, null));
   insert into public.pedidos (nombre, user_id, url, titulo, imagen, lineas, minutos, copias, notas, coste, coste_detalle, historial)
-  values (v_nombre, v_uid, v_url, left(coalesce(p->>'titulo', ''), 120), left(coalesce(p->>'imagen', ''), 600), v_lineas, v_min, v_cop,
+  values (v_nombre, v_uid, v_url, v_titulo, v_imagen, v_lineas, v_min, v_cop,
     left(coalesce(p->>'notas', ''), 600), (v_det->>'total')::numeric, v_det, jsonb_build_array(jsonb_build_object('estado', 'pendiente', 'fecha', now())))
   returning id into v_id;
   insert into public.pedido_tokens values (v_id, v_tok);
@@ -455,3 +466,52 @@ begin
 end $$;
 
 grant execute on function public.marcar_visita(), public.admin_cuentas(text) to anon, authenticated;
+
+-- ---------- me gusta y guardados (vitrina) ----------
+create table if not exists public.votos (
+  pedido_id uuid not null references public.pedidos on delete cascade,
+  user_id uuid not null references auth.users on delete cascade,
+  creado timestamptz not null default now(),
+  primary key (pedido_id, user_id)
+);
+create table if not exists public.guardados (
+  pedido_id uuid not null references public.pedidos on delete cascade,
+  user_id uuid not null references auth.users on delete cascade,
+  creado timestamptz not null default now(),
+  primary key (pedido_id, user_id)
+);
+alter table public.votos enable row level security;
+alter table public.guardados enable row level security;
+drop policy if exists leer on public.votos;
+create policy leer on public.votos for select using (true);
+drop policy if exists propios on public.guardados;
+create policy propios on public.guardados for select using (user_id = auth.uid());
+grant select on public.votos, public.guardados to anon, authenticated;
+
+-- devuelven cómo queda: true = ahora te gusta / lo tienes guardado
+create or replace function public.votar(p_id uuid) returns boolean
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if auth.uid() is null then raise exception 'Entra con tu cuenta para votar'; end if;
+  delete from public.votos where pedido_id = p_id and user_id = auth.uid();
+  if found then return false; end if;
+  insert into public.votos (pedido_id, user_id) values (p_id, auth.uid());
+  return true;
+end $$;
+
+create or replace function public.guardar(p_id uuid) returns boolean
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if auth.uid() is null then raise exception 'Entra con tu cuenta para guardar'; end if;
+  delete from public.guardados where pedido_id = p_id and user_id = auth.uid();
+  if found then return false; end if;
+  insert into public.guardados (pedido_id, user_id) values (p_id, auth.uid());
+  return true;
+end $$;
+
+grant execute on function public.votar(uuid), public.guardar(uuid) to authenticated;
+
+do $$
+begin
+  begin alter publication supabase_realtime add table public.votos; exception when others then null; end;
+end $$;

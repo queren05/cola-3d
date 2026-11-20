@@ -14,19 +14,76 @@ const ease = [0.22, 1, 0.36, 1] as const;
 /** cuándo se terminó de imprimir (o la última vez que se tocó) */
 const cuando = (p: Pedido) => [...(p.historial || [])].reverse().find((h) => h.estado === "impreso")?.fecha || p.actualizado || p.creado;
 
+type Orden = "recientes" | "gustan" | "grandes" | "caras";
+const TAMANOS = [
+  { id: "", label: "Cualquier tamaño" },
+  { id: "p", label: "Pequeñas (< 50 g)" },
+  { id: "m", label: "Medianas (50–200 g)" },
+  { id: "g", label: "Grandes (> 200 g)" },
+];
+const PRECIOS = [
+  { id: "", label: "Cualquier precio" },
+  { id: "1", label: "Hasta 1 €" },
+  { id: "5", label: "De 1 a 5 €" },
+  { id: "+", label: "Más de 5 €" },
+];
+const enTamano = (g: number, t: string) => !t || (t === "p" ? g < 50 : t === "m" ? g >= 50 && g <= 200 : g > 200);
+const enPrecio = (c: number, t: string) => !t || (t === "1" ? c <= 1 : t === "5" ? c > 1 && c <= 5 : c > 5);
+
 /** todo lo que ha salido de la impresora, con las fotos de cómo ha quedado */
 export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
-  const { datos, cargado, esAdmin } = useDatos();
-  const [soloFotos, setSoloFotos] = useState(false);
+  const { datos, cargado, esAdmin, sesion, api } = useDatos();
   const [nueva, setNueva] = useState(false);
-  const hechas = useMemo(
-    () => datos.pedidos.filter((p) => p.estado === "impreso" || p.estado === "entregado").sort((a, b) => cuando(b).localeCompare(cuando(a))),
-    [datos.pedidos],
-  );
-  const lista = soloFotos ? hechas.filter((p) => p.fotos?.length) : hechas;
+  const [orden, setOrden] = useState<Orden>("recientes");
+  const [soloFotos, setSoloFotos] = useState(false);
+  const [soloGuardadas, setSoloGuardadas] = useState(false);
+  const [persona, setPersona] = useState("");
+  const [tamano, setTamano] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [material, setMaterial] = useState("");
+  const yoId = api.modo === "local" ? "yo" : sesion?.id;
+
+  const hechas = useMemo(() => datos.pedidos.filter((p) => p.estado === "impreso" || p.estado === "entregado"), [datos.pedidos]);
+  const gustan = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const v of datos.votos || []) m.set(v.pedido_id, (m.get(v.pedido_id) || 0) + 1);
+    return m;
+  }, [datos.votos]);
+  const misVotos = useMemo(() => new Set((datos.votos || []).filter((v) => v.user_id === yoId).map((v) => v.pedido_id)), [datos.votos, yoId]);
+  const guardadas = useMemo(() => new Set(datos.guardados || []), [datos.guardados]);
+  const personas = useMemo(() => [...new Map(hechas.map((p) => [claveNombre(p.nombre), p.nombre])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es")), [hechas]);
+  const materiales = useMemo(() => {
+    const m = new Set<string>();
+    for (const p of hechas) for (const l of p.lineas) { const f = datos.filamentos.find((x) => x.id === l.filamento_id); if (f) m.add(f.material.toUpperCase()); }
+    return [...m].sort();
+  }, [hechas, datos.filamentos]);
+  const materialDe = (p: Pedido) => p.lineas.map((l) => datos.filamentos.find((x) => x.id === l.filamento_id)?.material.toUpperCase()).filter(Boolean);
+
+  const lista = useMemo(() => {
+    const g = (p: Pedido) => p.coste_detalle?.gramos || 0;
+    const l = hechas.filter(
+      (p) =>
+        (!soloFotos || p.fotos?.length) &&
+        (!soloGuardadas || guardadas.has(p.id)) &&
+        (!persona || claveNombre(p.nombre) === persona) &&
+        enTamano(g(p), tamano) &&
+        enPrecio(p.coste, precio) &&
+        (!material || materialDe(p).includes(material)),
+    );
+    const porFecha = (a: Pedido, b: Pedido) => cuando(b).localeCompare(cuando(a));
+    return l.sort((a, b) =>
+      orden === "gustan" ? (gustan.get(b.id) || 0) - (gustan.get(a.id) || 0) || porFecha(a, b)
+        : orden === "grandes" ? g(b) - g(a) || porFecha(a, b)
+        : orden === "caras" ? b.coste - a.coste || porFecha(a, b)
+        : porFecha(a, b),
+    );
+  }, [hechas, soloFotos, soloGuardadas, guardadas, persona, tamano, precio, material, orden, gustan]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtrando = soloFotos || soloGuardadas || !!persona || !!tamano || !!precio || !!material;
   const g = hechas.reduce((t, p) => t + (p.coste_detalle?.gramos || 0), 0);
   const horas = hechas.reduce((t, p) => t + (p.minutos || 0) * Math.max(1, p.copias || 1), 0) / 60;
   const fotos = hechas.reduce((t, p) => t + (p.fotos?.length || 0), 0);
+  const puedeVotar = !!yoId;
 
   return (
     <div className="pagina">
@@ -53,38 +110,75 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
       )}
 
       {hechas.length > 0 && (
-        <div className="filtros" role="tablist">
-          {[{ v: false, t: "Todas" }, { v: true, t: "Con foto" }].map((f) => (
-            <button key={String(f.v)} className={soloFotos === f.v ? "activo" : ""} onClick={() => setSoloFotos(f.v)} role="tab" aria-selected={soloFotos === f.v}>
-              {soloFotos === f.v && <motion.span layoutId="vitrina-filtro" className="filtro-fondo" transition={{ type: "spring", stiffness: 480, damping: 38 }} />}
-              <span>{f.t}</span>
-            </button>
-          ))}
+        <div className="v-filtros">
+          <div className="filtros" role="tablist" aria-label="Ordenar">
+            {([["recientes", "Recientes"], ["gustan", "Más gustan"], ["grandes", "Más grandes"], ["caras", "Más caras"]] as [Orden, string][]).map(([id, t]) => (
+              <button key={id} className={orden === id ? "activo" : ""} onClick={() => setOrden(id)} role="tab" aria-selected={orden === id}>
+                {orden === id && <motion.span layoutId="vitrina-orden" className="filtro-fondo" transition={{ type: "spring", stiffness: 480, damping: 38 }} />}
+                <span>{t}</span>
+              </button>
+            ))}
+          </div>
+          <div className="v-chips">
+            <button className={`v-chip${soloFotos ? " activo" : ""}`} onClick={() => setSoloFotos((v) => !v)} aria-pressed={soloFotos}>Con foto</button>
+            {puedeVotar && (
+              <button className={`v-chip${soloGuardadas ? " activo" : ""}`} onClick={() => setSoloGuardadas((v) => !v)} aria-pressed={soloGuardadas}>
+                <IGuardar lleno={soloGuardadas} /> Guardadas{guardadas.size ? ` · ${guardadas.size}` : ""}
+              </button>
+            )}
+            <select className={`v-chip${persona ? " activo" : ""}`} value={persona} onChange={(e) => setPersona(e.target.value)} aria-label="De quién">
+              <option value="">De todos</option>
+              {personas.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+            </select>
+            <select className={`v-chip${tamano ? " activo" : ""}`} value={tamano} onChange={(e) => setTamano(e.target.value)} aria-label="Tamaño">
+              {TAMANOS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <select className={`v-chip${precio ? " activo" : ""}`} value={precio} onChange={(e) => setPrecio(e.target.value)} aria-label="Precio">
+              {PRECIOS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            {materiales.length > 1 && (
+              <select className={`v-chip${material ? " activo" : ""}`} value={material} onChange={(e) => setMaterial(e.target.value)} aria-label="Material">
+                <option value="">Cualquier material</option>
+                {materiales.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            )}
+            <AnimatePresence>
+              {filtrando && (
+                <motion.button className="v-chip quitar" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={() => { setSoloFotos(false); setSoloGuardadas(false); setPersona(""); setTamano(""); setPrecio(""); setMaterial(""); }}>
+                  Quitar filtros
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       )}
 
       {!cargado ? null : lista.length === 0 ? (
-        <Vacio titulo={hechas.length ? "Todavía no hay fotos" : "Aún no se ha impreso nada"} icono={<IVitrina width={48} height={48} />} />
+        <Vacio titulo={!hechas.length ? "Aún no se ha impreso nada" : soloGuardadas ? "No has guardado ninguna" : "Nada con estos filtros"} icono={<IVitrina width={48} height={48} />} />
       ) : (
         <motion.div className="vitrina" layout>
           <AnimatePresence initial={true}>
             {lista.map((p, i) => (
-              <motion.button
+              <motion.div
                 key={p.id}
                 layout
+                role="button"
+                tabIndex={0}
                 className="vitrina-pieza"
                 onClick={() => abrir(p.id)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), abrir(p.id))}
                 initial={{ opacity: 0, y: 24, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.94 }}
-                transition={{ delay: Math.min(i * 0.05, 0.5), duration: 0.5, ease }}
+                transition={{ delay: Math.min(i * 0.04, 0.4), duration: 0.45, ease }}
                 whileHover={{ y: -4 }}
-                whileTap={{ scale: 0.98 }}
               >
                 <div className={`vitrina-foto${p.fotos?.length ? "" : " sin-foto"}`}>
                   <Portada p={p} />
                   {(p.fotos?.length || 0) > 1 && <span className="vitrina-num">{p.fotos!.length} fotos</span>}
                   {!p.fotos?.length && <span className="vitrina-modelo">Foto del modelo</span>}
+                  {puedeVotar && <BotonGuardar id={p.id} guardada={guardadas.has(p.id)} />}
                 </div>
                 <div className="vitrina-txt">
                   <strong>{p.titulo || "Pieza"}</strong>
@@ -92,13 +186,78 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
                     <Avatar nombre={p.nombre} size={18} /> {p.nombre} · {hace(cuando(p))}
                     {p.copias > 1 ? ` · ${p.copias} copias` : ""}
                   </span>
+                  <div className="vitrina-pie">
+                    <span className="vitrina-g num">{gramos(p.coste_detalle?.gramos || 0)}</span>
+                    <BotonGusta id={p.id} n={gustan.get(p.id) || 0} mio={misVotos.has(p.id)} puede={puedeVotar} />
+                  </div>
                 </div>
-              </motion.button>
+              </motion.div>
             ))}
           </AnimatePresence>
         </motion.div>
       )}
     </div>
+  );
+}
+
+/** corazón con contador (me gusta) */
+export function BotonGusta({ id, n, mio, puede, grande }: { id: string; n: number; mio: boolean; puede: boolean; grande?: boolean }) {
+  const { api, recargar, aviso } = useDatos();
+  const [optimista, setOptimista] = useState<boolean | null>(null);
+  const activo = optimista ?? mio;
+  const cuenta = n + (optimista === null ? 0 : optimista === mio ? 0 : optimista ? 1 : -1);
+  useEffect(() => setOptimista(null), [mio, n]);
+  async function pulsar(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!puede || !api.votar) return aviso("Entra con tu cuenta para votar", "error");
+    setOptimista(!activo);
+    try {
+      await api.votar(id);
+      await recargar();
+    } catch (err) {
+      setOptimista(null);
+      aviso(err instanceof Error ? err.message : "No se ha podido votar", "error");
+    }
+  }
+  return (
+    <button className={`gusta${activo ? " activo" : ""}${grande ? " grande" : ""}`} onClick={pulsar} aria-pressed={activo} aria-label={activo ? "Quitar me gusta" : "Me gusta"}>
+      <motion.svg key={String(activo)} width={grande ? 22 : 18} height={grande ? 22 : 18} viewBox="0 0 24 24" initial={activo ? { scale: 0.4 } : false} animate={{ scale: [null, 1.3, 1] }} transition={{ duration: 0.35 }} aria-hidden="true">
+        <path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 3.9 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.6 3.1 4.4 6.6-1.7 4.8-9.2 9.4-9.2 9.4Z" fill={activo ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      </motion.svg>
+      {cuenta > 0 && <span className="num">{cuenta}</span>}
+      {grande && <span>{activo ? "Te gusta" : "Me gusta"}</span>}
+    </button>
+  );
+}
+
+const IGuardar = ({ lleno }: { lleno: boolean }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z" fill={lleno ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
+);
+
+/** marcador para guardar la pieza */
+export function BotonGuardar({ id, guardada, grande }: { id: string; guardada: boolean; grande?: boolean }) {
+  const { api, recargar, aviso } = useDatos();
+  const [optimista, setOptimista] = useState<boolean | null>(null);
+  const activo = optimista ?? guardada;
+  useEffect(() => setOptimista(null), [guardada]);
+  async function pulsar(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!api.guardar) return;
+    setOptimista(!activo);
+    try {
+      const ahora = await api.guardar(id);
+      await recargar();
+      aviso(ahora ? "Guardada" : "Quitada de guardadas");
+    } catch (err) {
+      setOptimista(null);
+      aviso(err instanceof Error ? err.message : "No se ha podido guardar", "error");
+    }
+  }
+  return (
+    <motion.button className={`guardar${activo ? " activo" : ""}${grande ? " grande" : ""}`} onClick={pulsar} aria-pressed={activo} aria-label={activo ? "Quitar de guardadas" : "Guardar"} whileTap={{ scale: 0.85 }}>
+      <IGuardar lleno={activo} />
+      {grande && <span>{activo ? "Guardada" : "Guardar"}</span>}
+    </motion.button>
   );
 }
 
