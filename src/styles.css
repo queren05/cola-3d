@@ -654,3 +654,12 @@ button.quien:not(:has(.avatar)) { padding: 0 14px; background: var(--hot); color
 .clave-input input { width: 100%; padding-right: 48px; }
 .clave-ojo { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 0; background: none; border-radius: 10px; display: grid; place-items: center; color: var(--muted); cursor: pointer; }
 .clave-ojo:hover, .clave-ojo[aria-pressed="true"] { color: var(--ink); }
+
+/* gramos de regalo */
+.regalo { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 18px; font-size: 14px; line-height: 1.4;
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); color: var(--ink); overflow: hidden; }
+.regalo strong { color: var(--ok); }
+.regalo-icono { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--ok); color: #fff; }
+@media (prefers-reduced-motion: no-preference) { .regalo-icono { animation: regalo 2.6s ease-in-out infinite; } }
+@keyframes regalo { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-10deg) scale(1.06); } 84% { transform: rotate(8deg) scale(1.06); } 92% { transform: rotate(-4deg); } }
+.r-gratis, .desglose-fila.gratis { color: var(--ok); font-weight: 650; }

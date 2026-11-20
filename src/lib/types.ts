@@ -33,6 +33,8 @@ export interface Ajustes {
   merma_pct: number;
   /** teléfono para pagar por Bizum */
   bizum: string;
+  /** gramos gratis para cada persona, que se gastan entre sus pedidos */
+  gratis_g: number;
 }
 
 export interface Linea {
@@ -60,6 +62,9 @@ export interface CosteDetalle {
   gramos: number;
   total: number;
   lineas: LineaCoste[];
+  /** gramos que han salido gratis en este pedido */
+  gratis_g?: number;
+  descuento?: number;
 }
 
 /** perfil de impresión de MakerWorld (gramos, tiempo y colores ya laminados) */

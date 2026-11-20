@@ -15,6 +15,7 @@ create table if not exists public.ajustes (
   bizum text not null default ''                 -- teléfono para pagar por Bizum
 );
 alter table public.ajustes add column if not exists bizum text not null default '';
+alter table public.ajustes add column if not exists gratis_g numeric not null default 50; -- gramos gratis para cada persona (se gastan entre sus pedidos)
 insert into public.ajustes (id) values (1) on conflict do nothing;
 
 create table if not exists public.secreto (
@@ -172,6 +173,30 @@ begin
 end $$;
 
 -- ---------- funciones públicas ----------
+-- gramos gratis que le quedan a una persona (su cuenta o, sin cuenta, su nombre); lo cancelado no cuenta
+create or replace function public._gratis_restante(p_uid uuid, p_nombre text, p_excluir uuid) returns numeric
+language sql stable security definer set search_path = public, extensions as $$
+  select greatest(0, coalesce((select gratis_g from public.ajustes where id = 1), 50) - coalesce(sum((coste_detalle->>'gratis_g')::numeric), 0))
+  from public.pedidos
+  where estado <> 'cancelado' and id is distinct from p_excluir
+    and ((p_uid is not null and user_id = p_uid) or (p_uid is null and user_id is null and lower(trim(nombre)) = lower(trim(p_nombre))));
+$$;
+
+-- descuenta el filamento (y su purga) de los gramos gratis; la luz se cobra igual
+create or replace function public._aplicar_gratis(p_det jsonb, p_restante numeric) returns jsonb
+language plpgsql immutable set search_path = public, extensions as $$
+declare
+  g numeric := coalesce((p_det->>'gramos')::numeric, 0);
+  libre numeric := least(g, greatest(0, coalesce(p_restante, 0)));
+  descuento numeric := 0;
+begin
+  if g > 0 and libre > 0 then
+    descuento := round(((p_det->>'filamento')::numeric + (p_det->>'merma')::numeric) * libre / g, 2);
+  end if;
+  return p_det || jsonb_build_object('gratis_g', round(libre, 1), 'descuento', descuento,
+    'total', greatest(0, round((p_det->>'total')::numeric - descuento, 2)));
+end $$;
+
 create or replace function public.crear_pedido(p jsonb) returns jsonb
 language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -190,6 +215,7 @@ begin
   if v_url !~* '^https?://([a-z0-9-]+\.)*makerworld\.com(\.cn)?/' then raise exception 'Solo modelos de MakerWorld con perfil de impresión'; end if;
   v_det := public._coste(v_lineas, v_min, v_cop);
   if (v_det->>'gramos')::numeric <= 0 then raise exception 'Faltan los gramos'; end if;
+  v_det := public._aplicar_gratis(v_det, public._gratis_restante(v_uid, v_nombre, null));
   insert into public.pedidos (nombre, user_id, url, titulo, imagen, lineas, minutos, copias, notas, coste, coste_detalle, historial)
   values (v_nombre, v_uid, v_url, left(coalesce(p->>'titulo', ''), 120), left(coalesce(p->>'imagen', ''), 600), v_lineas, v_min, v_cop,
     left(coalesce(p->>'notas', ''), 600), (v_det->>'total')::numeric, v_det, jsonb_build_array(jsonb_build_object('estado', 'pendiente', 'fecha', now())))
@@ -245,7 +271,7 @@ begin
   end if;
   if p ? 'prioridad' then r.prioridad := greatest(0, (p->>'prioridad')::int); end if;
   if cambia then
-    v_det := public._coste(r.lineas, r.minutos, r.copias);
+    v_det := public._aplicar_gratis(public._coste(r.lineas, r.minutos, r.copias), public._gratis_restante(r.user_id, r.nombre, r.id));
     r.coste_detalle := v_det; r.coste := (v_det->>'total')::numeric;
     if r.descontado then perform public._stock(r.lineas, r.copias, (v_det->>'merma_pct')::numeric, -1); end if;
   end if;
@@ -316,7 +342,8 @@ begin
     peso_defecto = greatest(1, coalesce((a->>'peso_defecto')::int, peso_defecto)),
     luz_hora = greatest(0, coalesce((a->>'luz_hora')::numeric, luz_hora)),
     merma_pct = greatest(0, coalesce((a->>'merma_pct')::numeric, merma_pct)),
-    bizum = left(trim(coalesce(a->>'bizum', bizum)), 30)
+    bizum = left(trim(coalesce(a->>'bizum', bizum)), 30),
+    gratis_g = greatest(0, coalesce((a->>'gratis_g')::numeric, gratis_g))
   where id = 1;
 end $$;
 
@@ -330,7 +357,7 @@ end $$;
 
 -- ---------- permisos ----------
 revoke all on function public._lineas(jsonb), public._coste(jsonb, int, int), public._stock(jsonb, int, numeric, int),
-  public._es_admin(text), public._exigir_admin(text) from public, anon, authenticated;
+  public._es_admin(text), public._exigir_admin(text), public._gratis_restante(uuid, text, uuid) from public, anon, authenticated;
 grant execute on function public.crear_pedido(jsonb), public.cancelar_pedido(uuid, text), public.comprobar_clave(text), public.soy_admin(),
   public.admin_pedido(text, uuid, jsonb), public.admin_borrar_pedido(text, uuid), public.admin_filamento(text, jsonb),
   public.admin_borrar_filamento(text, uuid), public.admin_ajustes(text, jsonb), public.admin_cambiar_clave(text, text) to anon, authenticated;

@@ -252,6 +252,14 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                     <span className="num">{eur(det.luz)}</span>
                   </div>
                 )}
+                {(det?.descuento || 0) > 0 && (
+                  <div className="desglose-fila gratis">
+                    <span className="muestra" style={{ background: "var(--ok)" }} />
+                    <span className="d-nombre">Gramos de regalo</span>
+                    <span className="num d-calc">{gramos(det.gratis_g || 0)}</span>
+                    <span className="num">−{eur(det.descuento || 0)}</span>
+                  </div>
+                )}
                 <div className="desglose-fila total">
                   <span />
                   <span className="d-nombre">Total{p.copias > 1 ? ` · ${p.copias} copias` : ""}</span>

@@ -1,5 +1,5 @@
 import { esMakerWorld } from "./perfiles";
-import { AJUSTES_DEFECTO, calcularCoste } from "./coste";
+import { AJUSTES_DEFECTO, aplicarGratis, calcularCoste, gratisRestante } from "./coste";
 import type { Ajustes, Api, CambiosPedido, Datos, Filamento, Linea, NuevoPedido, Pedido } from "./types";
 
 /** Modo prueba: todo se guarda en este navegador. Misma lógica que las funciones de supabase/schema.sql. */
@@ -88,8 +88,9 @@ export function apiLocal(): Api {
       const lineas = limpiarLineas(p.lineas);
       const copias = Math.min(50, Math.max(1, Math.round(p.copias || 1)));
       const minutos = Math.min(10000, Math.max(0, Math.round(p.minutos || 0)));
-      const det = calcularCoste(lineas, minutos, copias, d.filamentos, d.ajustes);
-      if (det.gramos <= 0) throw new Error("Faltan los gramos");
+      const bruto = calcularCoste(lineas, minutos, copias, d.filamentos, d.ajustes);
+      if (bruto.gramos <= 0) throw new Error("Faltan los gramos");
+      const det = aplicarGratis(bruto, gratisRestante(d.pedidos, { ...AJUSTES_DEFECTO, ...d.ajustes }, null, nombre));
       const ahora = new Date().toISOString();
       const id = uid(), token = uid();
       d.pedidos.push({
@@ -135,7 +136,7 @@ export function apiLocal(): Api {
       if (c.fotos !== undefined) p.fotos = c.fotos.slice(0, 12);
       if (c.prioridad !== undefined) p.prioridad = Math.max(0, Math.round(c.prioridad));
       if (cambiaCantidad) {
-        p.coste_detalle = calcularCoste(p.lineas, p.minutos, p.copias, d.filamentos, d.ajustes);
+        p.coste_detalle = aplicarGratis(calcularCoste(p.lineas, p.minutos, p.copias, d.filamentos, d.ajustes), gratisRestante(d.pedidos, { ...AJUSTES_DEFECTO, ...d.ajustes }, p.user_id, p.nombre, p.id));
         p.coste = p.coste_detalle.total;
         if (p.descontado) stock(d, p, -1);
       }

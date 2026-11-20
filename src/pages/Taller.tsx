@@ -69,6 +69,7 @@ function Panel() {
   const [luz, setLuz] = useState("");
   const [merma, setMerma] = useState("");
   const [bizum, setBizum] = useState("");
+  const [gratisG, setGratisG] = useState("");
   const [nueva, setNueva] = useState("");
   const [ocupado, setOcupado] = useState(false);
   useEffect(() => {
@@ -77,7 +78,8 @@ function Panel() {
     setLuz(String(a.luz_hora).replace(".", ","));
     setMerma(String(a.merma_pct).replace(".", ","));
     setBizum(a.bizum || "");
-  }, [a.precio_defecto, a.peso_defecto, a.luz_hora, a.merma_pct, a.bizum]);
+    setGratisG(String(a.gratis_g ?? 50));
+  }, [a.precio_defecto, a.peso_defecto, a.luz_hora, a.merma_pct, a.bizum, a.gratis_g]);
 
   const ps = datos.pedidos;
   const hechos = ps.filter((p) => p.estado === "impreso" || p.estado === "entregado");
@@ -124,13 +126,14 @@ function Panel() {
           <label className="campo"><span>Gramos por rollo</span><input id="a-peso" className="num" inputMode="numeric" value={peso} onChange={(e) => setPeso(e.target.value)} /></label>
           <label className="campo"><span>Luz y desgaste por hora (€)</span><input id="a-luz" className="num" inputMode="decimal" value={luz} onChange={(e) => setLuz(e.target.value)} /></label>
           <label className="campo"><span>Purga con varios colores (%)</span><input id="a-merma" className="num" inputMode="decimal" value={merma} onChange={(e) => setMerma(e.target.value)} /></label>
+          <label className="campo"><span>Gramos gratis por persona</span><input id="a-gratis" className="num" inputMode="numeric" value={gratisG} onChange={(e) => setGratisG(e.target.value)} placeholder="50" /></label>
           <label className="campo"><span>Teléfono para Bizum</span><input id="a-bizum" className="num" inputMode="tel" autoComplete="off" value={bizum} onChange={(e) => setBizum(e.target.value)} placeholder="600 000 000" maxLength={30} /></label>
         </div>
         <p className="pista num">Ejemplo: 100 g a {eur(num(precio))}/{gramos(num(peso) || 1000)} = {eur((100 * num(precio)) / Math.max(1, num(peso)))}</p>
         <button
           className="boton primario"
           disabled={ocupado}
-          onClick={() => hacer(() => api.adminAjustes(clave!, { precio_defecto: num(precio) || 17.99, peso_defecto: Math.round(num(peso)) || 1000, luz_hora: num(luz), merma_pct: num(merma), bizum: bizum.trim() }), "Precios guardados")}
+          onClick={() => hacer(() => api.adminAjustes(clave!, { precio_defecto: num(precio) || 17.99, peso_defecto: Math.round(num(peso)) || 1000, luz_hora: num(luz), merma_pct: num(merma), bizum: bizum.trim(), gratis_g: Math.max(0, num(gratisG)) }), "Precios guardados")}
         >
           Guardar precios
         </button>

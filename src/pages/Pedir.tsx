@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ICerrar, ICheck, IMas } from "../components/Iconos";
 import { Bobina, EtiquetaColor, Muestra, Numero, ClaveInput } from "../components/Piezas";
-import { calcularCoste } from "../lib/coste";
+import { aplicarGratis, calcularCoste, gratisRestante } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
 import { alternativas, esA1mini, esMakerWorld, lineasDePerfil, tieneMaterial, type Falta, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
@@ -88,8 +88,13 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   // colores que no hay en el taller y aún no tienen solución
   const sinResolver = filamentos.length > 0 ? lineas.filter((l) => !l.filamento_id && !l.cambio && num(l.txt) > 0) : [];
   const minutos = Math.round(num(horas) * 60 + num(mins));
-  const det = useMemo(() => calcularCoste(lineasCalc, minutos, copias, datos.filamentos, datos.ajustes), [JSON.stringify(lineasCalc), minutos, copias, datos]); // eslint-disable-line react-hooks/exhaustive-deps
   const nombreFinal = (sesion?.nombre || nombre).trim();
+  const gratisTotal = datos.ajustes.gratis_g ?? 50;
+  const gratis = gratisRestante(datos.pedidos, datos.ajustes, sesion?.id, nombreFinal);
+  const det = useMemo(
+    () => aplicarGratis(calcularCoste(lineasCalc, minutos, copias, datos.filamentos, datos.ajustes), gratis),
+    [JSON.stringify(lineasCalc), minutos, copias, datos, gratis], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // ordena: primero los hechos para la A1 mini, luego los que también le sirven
   const perfiles = useMemo(() => [...(vista?.perfiles || [])].sort((a, b) => Number(esA1mini(b)) - Number(esA1mini(a)) || Number(b.a1mini) - Number(a.a1mini)), [vista]);
   const mw = !!url && esMakerWorld(url);
@@ -169,6 +174,22 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
 
       <form className="pedir" onSubmit={enviar} noValidate>
         <div className="pedir-campos">
+          <AnimatePresence initial={false}>
+            {gratis > 0 && (sesion || nombreFinal) && (
+              <motion.div key="regalo" className="regalo" initial={{ opacity: 0, y: -8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, height: 0 }} transition={{ type: "spring", stiffness: 380, damping: 28 }}>
+                <span className="regalo-icono" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5" /></svg>
+                </span>
+                <span>
+                  {gratis >= gratisTotal ? (
+                    <><strong>Tu primera impresión: los primeros {n1(gratisTotal)} g son gratis.</strong> Si gastas menos, lo que sobre se guarda para la siguiente.</>
+                  ) : (
+                    <><strong>Te quedan {n1(gratis)} g gratis</strong> de tus {n1(gratisTotal)} g de regalo.</>
+                  )}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {!sesion && (
             <label className="campo">
               <span>Quién eres</span>
@@ -380,6 +401,13 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                     <span className="muestra multicolor" style={{ width: 10, height: 10 }} />
                     <span>Purga de colores +{det.merma_pct} %</span>
                     <span className="num">{eur(det.merma)}</span>
+                  </motion.div>
+                )}
+                {(det.descuento || 0) > 0 && (
+                  <motion.div key="gratis" className="r-fila r-gratis" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                    <span className="muestra" style={{ width: 10, height: 10, background: "var(--ok)" }} />
+                    <span>{n1(det.gratis_g || 0)} g gratis</span>
+                    <span className="num">−{eur(det.descuento || 0)}</span>
                   </motion.div>
                 )}
                 {det.luz > 0 && (
