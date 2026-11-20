@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { AJUSTES_DEFECTO } from "./coste";
-import type { Ajustes, Api, Cuenta, Datos, Filamento, Pedido, Perfil } from "./types";
+import type { Acceso, Ajustes, Api, Cuenta, Datos, Filamento, Grupo, Pedido, Perfil } from "./types";
 
 /** Supabase: la web solo lee las tablas; todo lo que escribe pasa por las funciones de supabase/schema.sql. */
 export function apiSupabase(url: string, key: string, cuentas: boolean, previewFn: boolean): Api {
@@ -25,7 +25,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       const err = a.error || f.error || p.error;
       if (err) throw new Error(err.message);
       const aj: Ajustes = a.data
-        ? { precio_defecto: num(a.data.precio_defecto), peso_defecto: num(a.data.peso_defecto), luz_hora: num(a.data.luz_hora), merma_pct: num(a.data.merma_pct), bizum: String(a.data.bizum || ""), gratis_g: a.data.gratis_g === undefined || a.data.gratis_g === null ? 50 : num(a.data.gratis_g), pago_minimo: a.data.pago_minimo === undefined || a.data.pago_minimo === null ? 0.5 : num(a.data.pago_minimo), coste_real_kg: a.data.coste_real_kg === undefined || a.data.coste_real_kg === null ? 12 : num(a.data.coste_real_kg) }
+        ? { precio_defecto: num(a.data.precio_defecto), peso_defecto: num(a.data.peso_defecto), luz_hora: num(a.data.luz_hora), merma_pct: num(a.data.merma_pct), bizum: String(a.data.bizum || ""), gratis_g: a.data.gratis_g === undefined || a.data.gratis_g === null ? 50 : num(a.data.gratis_g), pago_minimo: a.data.pago_minimo === undefined || a.data.pago_minimo === null ? 0.5 : num(a.data.pago_minimo), coste_real_kg: a.data.coste_real_kg === undefined || a.data.coste_real_kg === null ? 12 : num(a.data.coste_real_kg), limite_mes_g: a.data.limite_mes_g === undefined || a.data.limite_mes_g === null ? 0 : num(a.data.limite_mes_g), max_pendientes: a.data.max_pendientes === undefined || a.data.max_pendientes === null ? 0 : num(a.data.max_pendientes) }
         : AJUSTES_DEFECTO;
       const filamentos = (f.data || []).map((x) => ({ ...x, precio: x.precio === null ? null : Number(x.precio), peso: num(x.peso), stock_g: num(x.stock_g) })) as Filamento[];
       const pedidos = (p.data || []).map((x) => ({ ...x, coste: num(x.coste) })) as Pedido[];
@@ -66,6 +66,7 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
         .on("postgres_changes", { event: "*", schema: "public", table: "avisos" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "comentarios" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "deseos" }, aviso)
+        .on("postgres_changes", { event: "*", schema: "public", table: "miembros" }, aviso)
         .subscribe();
       // por si el tiempo real se corta: refresco al volver a la pestaña
       const vis = () => document.visibilityState === "visible" && aviso();
@@ -97,6 +98,17 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     adminCrearPieza: (clave, p) => rpc<string>("admin_crear_pieza", { p_clave: clave, p }),
     adminCuentas: (clave) => rpc<Cuenta[]>("admin_cuentas", { p_clave: clave }),
     adminRenombrar: (clave, userId, nombre) => rpc("admin_renombrar", { p_clave: clave, p_user: userId, p_nombre: nombre }),
+    async miAcceso() {
+      const { data, error } = await sb.rpc("mi_acceso", {});
+      // sin el SQL de los grupos todavía: todo como antes
+      if (error || !data) return null;
+      const d = data as Acceso;
+      return { taller: !!d.taller, grupo: d.grupo || null, limite_mes_g: num(d.limite_mes_g), max_pendientes: num(d.max_pendientes), usado_mes_g: num(d.usado_mes_g) };
+    },
+    unirme: (codigo) => rpc<Grupo>("unirme", { p_codigo: codigo }),
+    adminGrupo: (clave, userId, grupo) => rpc("admin_grupo", { p_clave: clave, p_user: userId, p_grupo: grupo }),
+    adminInvitaciones: (clave) => rpc<{ grupo: Grupo; codigo: string }[]>("admin_invitaciones", { p_clave: clave }),
+    adminNuevaInvitacion: (clave, grupo) => rpc<string>("admin_nueva_invitacion", { p_clave: clave, p_grupo: grupo }),
     votar: (id) => rpc<boolean>("votar", { p_id: id }),
     leerAvisos: () => rpc("leer_avisos", {}),
     comentar: (id, texto) => rpc("comentar", { p_id: id, p_texto: texto }),

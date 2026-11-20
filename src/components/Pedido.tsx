@@ -79,7 +79,7 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
         <div className="tarjeta-pie">
           <span className="chips">
             <Chip estado={p.estado} />
-            {p.peticion && p.estado === "pendiente" ? <span className="peticion-chip">Petición · {p.lineas.filter((l) => l.gramos > 0).length} colores</span> : p.estado === "pendiente" && !p.pagado && acumula(p, datosCola.pedidos, datosCola.ajustes) ? <span className="acumula-chip">Se acumula</span> : p.estado === "pendiente" && (p.pagado ? <span className="pagado"><ICheck width={12} height={12} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
+            {p.peticion && p.estado === "pendiente" ? <span className="peticion-chip">Petición · {p.coste_detalle?.motivo === "limite" ? "límite del mes" : `${p.lineas.filter((l) => l.gramos > 0).length} colores`}</span> : p.estado === "pendiente" && !p.pagado && acumula(p, datosCola.pedidos, datosCola.ajustes) ? <span className="acumula-chip">Se acumula</span> : p.estado === "pendiente" && (p.pagado ? <span className="pagado"><ICheck width={12} height={12} /> Pagado</span> : <span className="sin-pagar">Sin pagar</span>)}
           </span>
           <span className="colores">
             {p.lineas.slice(0, 5).map((l, i) => (
@@ -169,8 +169,17 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
 
             {p.peticion && p.estado === "pendiente" && (
               <div className="peticion-aviso">
-                <strong>Petición: {p.lineas.filter((l) => l.gramos > 0).length} colores</strong>
-                <span>{esAdmin ? "La impresora lleva 4 colores a la vez. Si te animas a cambiar carretes, acéptala y entra en la cola." : "La impresora lleva 4 colores a la vez. El taller te dirá si se puede; hasta entonces no hace falta pagar."}</span>
+                {p.coste_detalle?.motivo === "limite" ? (
+                  <>
+                    <strong>Petición: se pasa de los gramos del mes</strong>
+                    <span>{esAdmin ? "Si te parece bien, acéptala y entra en la cola." : "El taller te dirá si se puede; hasta entonces no hace falta pagar."}</span>
+                  </>
+                ) : (
+                  <>
+                    <strong>Petición: {p.lineas.filter((l) => l.gramos > 0).length} colores</strong>
+                    <span>{esAdmin ? "La impresora lleva 4 colores a la vez. Si te animas a cambiar carretes, acéptala y entra en la cola." : "La impresora lleva 4 colores a la vez. El taller te dirá si se puede; hasta entonces no hace falta pagar."}</span>
+                  </>
+                )}
                 {esAdmin && clave !== null && (
                   <button className="boton primario" disabled={ocupado} onClick={() => hacer(() => api.adminPedido(clave, p.id, { peticion: false }), "Petición aceptada: ya está en la cola")}>Aceptar petición</button>
                 )}

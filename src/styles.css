@@ -1049,3 +1049,23 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .rentab .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 900px) { .rentab .cifras { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .pc-leyenda { display: none; } }
+
+/* ---------- grupos e invitaciones ---------- */
+.sin-acceso { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 28px 20px; margin-bottom: 18px; }
+.sin-acceso h2 { margin: 4px 0 0; }
+.sin-acceso p { margin: 0; color: var(--muted); max-width: 42ch; }
+.sin-acceso-icono { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 18px; background: color-mix(in srgb, var(--hot) 16%, transparent); color: var(--hot); }
+.sin-acceso-form { display: flex; gap: 8px; width: 100%; max-width: 420px; margin-top: 8px; }
+.sin-acceso-form input { flex: 1; min-width: 0; }
+.invitaciones { display: grid; gap: 10px; }
+.invitacion { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border-left: 4px solid var(--g-color, var(--hot)); }
+.invitacion.inv-familia, .grupo-sel.g-familia { --g-color: #e0679a; }
+.invitacion.inv-amigos, .grupo-sel.g-amigos { --g-color: #4f9be8; }
+.invitacion-txt { display: grid; gap: 2px; min-width: 0; }
+.invitacion-txt code { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.invitacion-botones { display: flex; gap: 6px; flex-wrap: wrap; }
+.invitacion-botones .boton { padding: 8px 12px; }
+.cuenta-grupo { grid-column: 2 / -1; margin-top: -6px; }
+.cuenta-grupo .grupo-sel { display: inline-block; margin-top: 4px; width: auto; font-size: 12.5px; font-weight: 700; padding: 3px 26px 3px 10px; border-radius: 999px; border: 1.5px solid var(--g-color, var(--line)); color: var(--g-color, var(--muted)); background-color: color-mix(in srgb, var(--g-color, var(--muted)) 12%, transparent); min-height: 0; }
+.grupo-sel.g-nada { --g-color: var(--st-imprimiendo); }
+.cuenta-grupo span.grupo-sel.g-taller { --g-color: var(--hot); padding: 3px 10px; }

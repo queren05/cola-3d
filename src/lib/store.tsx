@@ -3,7 +3,7 @@ import { apiLocal } from "./api-local";
 import { apiSupabase } from "./api-supabase";
 import { AJUSTES_DEFECTO } from "./coste";
 import { clave as claveNombre } from "./formato";
-import type { Api, Datos, Pedido, Sesion } from "./types";
+import type { Acceso, Api, Datos, Grupo, Pedido, Sesion } from "./types";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -26,6 +26,22 @@ function lsSet(k: string, v: unknown, store: Storage | null = null) {
     else (store ?? localStorage).setItem(k, JSON.stringify(v));
   } catch {}
 }
+
+/** enlace de invitación: …/cola-3d/?invita=código (se guarda hasta que entras con tu cuenta) */
+function leerInvitacion(): string | null {
+  try {
+    const u = new URL(location.href);
+    const c = u.searchParams.get("invita");
+    if (c) {
+      lsSet("cola3d-invita", c.trim());
+      u.searchParams.delete("invita");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    }
+  } catch {}
+  return ls<string | null>("cola3d-invita", null);
+}
+
+export const nombreGrupo = (g: Grupo | null | undefined) => (g === "familia" ? "Familia" : g === "amigos" ? "Amigos" : "Sin acceso");
 
 export interface Toast {
   id: number;
@@ -64,6 +80,13 @@ interface Ctx {
   /** quita algo de la pantalla al momento (pedido, pieza o rollo borrado), sin esperar a recargar */
   quitar: (id: string) => void;
   setResaltado: (id: string | null) => void;
+  /** tu grupo y lo que llevas este mes (null = sin cuenta o sin grupos) */
+  acceso: Acceso | null;
+  /** con cuenta pero aún sin grupo: no puede pedir */
+  sinAcceso: boolean;
+  /** hay un enlace de invitación esperando a que entres */
+  invitado: boolean;
+  unirme: (codigo: string) => Promise<boolean>;
 }
 
 const C = createContext<Ctx | null>(null);
@@ -80,12 +103,15 @@ export function Proveedor({ children }: { children: ReactNode }) {
   const [recuperando, setRecuperando] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [resaltado, setResaltado] = useState<string | null>(null);
+  const [acceso, setAcceso] = useState<Acceso | null>(null);
+  const [invitacion, setInvitacion] = useState<string | null>(leerInvitacion);
   const tid = useRef(0);
 
   const recargar = useCallback(async () => {
     try {
-      const d = await api.cargar();
+      const [d, ac] = await Promise.all([api.cargar(), api.miAcceso ? api.miAcceso().catch(() => null) : Promise.resolve(null)]);
       setDatos(d);
+      setAcceso(ac);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se ha podido cargar");
@@ -105,6 +131,7 @@ export function Proveedor({ children }: { children: ReactNode }) {
     api.sesion().then(async (s) => {
       setSesion(s);
       if (s) api.marcarVisita?.().catch(() => {});
+      if (s) recargar();
       if (s && api.soyAdmin) setAdminCuenta(await api.soyAdmin().catch(() => false));
     });
     return quitar;
@@ -115,6 +142,32 @@ export function Proveedor({ children }: { children: ReactNode }) {
     setToasts((t) => [...t, { id, texto, tipo }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2600);
   }, []);
+
+  const sinAcceso = !!sesion && !!acceso && !acceso.taller && !adminCuenta && !acceso.grupo;
+  const unirme = useCallback(
+    async (codigo: string) => {
+      // vale el código suelto o el enlace entero
+      const c = (codigo.match(/invita=([a-z0-9]+)/i)?.[1] || codigo).trim().toLowerCase();
+      if (!c || !api.unirme) return false;
+      try {
+        const g = await api.unirme(c);
+        aviso(`Ya estás en ${nombreGrupo(g)}`);
+        await recargar();
+        return true;
+      } catch (e) {
+        aviso(e instanceof Error ? e.message : "No se ha podido", "error");
+        return false;
+      } finally {
+        lsSet("cola3d-invita", null);
+        setInvitacion(null);
+      }
+    },
+    [aviso, recargar],
+  );
+  // al entrar con un enlace de invitación pendiente, se usa solo
+  useEffect(() => {
+    if (sinAcceso && invitacion) unirme(invitacion);
+  }, [sinAcceso, invitacion, unirme]);
 
   const value: Ctx = useMemo(
     () => ({
@@ -136,6 +189,8 @@ export function Proveedor({ children }: { children: ReactNode }) {
         if (s) api.marcarVisita?.().catch(() => {});
         if (s && api.soyAdmin) api.soyAdmin().then(setAdminCuenta).catch(() => {});
         else setAdminCuenta(false);
+        // con otra cuenta se ven otras cosas (cada grupo lo suyo)
+        recargar();
       },
       tokens,
       guardarToken: (id, token) => {
@@ -163,6 +218,10 @@ export function Proveedor({ children }: { children: ReactNode }) {
       aviso,
       resaltado,
       setResaltado,
+      acceso,
+      sinAcceso,
+      invitado: !!invitacion,
+      unirme,
       quitar: (id: string) =>
         setDatos((d) => ({ ...d, pedidos: d.pedidos.filter((x) => x.id !== id), filamentos: d.filamentos.filter((x) => x.id !== id) })),
       esMio: (p: Pedido) => {
@@ -171,7 +230,7 @@ export function Proveedor({ children }: { children: ReactNode }) {
         return !!yo && claveNombre(p.nombre) === claveNombre(yo);
       },
     }),
-    [datos, cargado, error, recargar, yo, sesion, tokens, clave, adminCuenta, toasts, aviso, resaltado, recuperando],
+    [datos, cargado, error, recargar, yo, sesion, tokens, clave, adminCuenta, toasts, aviso, resaltado, recuperando, acceso, sinAcceso, invitacion, unirme],
   );
   return <C.Provider value={value}>{children}</C.Provider>;
 }

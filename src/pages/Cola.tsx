@@ -1,3 +1,4 @@
+import { SinAcceso } from "../components/Grupos";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { IPedir } from "../components/Iconos";
@@ -29,7 +30,7 @@ export function ordenCola(ps: Pedido[], a?: Ajustes) {
 }
 
 export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: string) => void }) {
-  const { datos, cargado, yo, tokens, resaltado, setResaltado, error, esMio } = useDatos();
+  const { datos, cargado, yo, tokens, resaltado, setResaltado, error, esMio, sinAcceso } = useDatos();
   const [filtro, setFiltro] = useState<Filtro>(() => {
     try {
       return (sessionStorage.getItem("cola3d-filtro") as Filtro) || "cola";
@@ -80,6 +81,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
 
   return (
     <div className="pagina">
+      {sinAcceso && <SinAcceso />}
       <section className="portada-cola">
         <div className="pc-texto">
           <span className="sobretitulo">Taller de impresión 3D</span>

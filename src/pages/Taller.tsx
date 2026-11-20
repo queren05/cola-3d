@@ -1,3 +1,4 @@
+import { ElegirGrupo, Invitaciones } from "../components/Grupos";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ICandado } from "../components/Iconos";
@@ -75,6 +76,8 @@ function Panel() {
   const [gratisG, setGratisG] = useState("");
   const [minimo, setMinimo] = useState("");
   const [real, setReal] = useState("");
+  const [limite, setLimite] = useState("");
+  const [maxPend, setMaxPend] = useState("");
   const [nueva, setNueva] = useState("");
   const [ocupado, setOcupado] = useState(false);
   useEffect(() => {
@@ -86,7 +89,9 @@ function Panel() {
     setGratisG(String(a.gratis_g ?? 50));
     setMinimo(String(a.pago_minimo ?? 0.5).replace(".", ","));
     setReal(String(a.coste_real_kg ?? 12).replace(".", ","));
-  }, [a.precio_defecto, a.peso_defecto, a.luz_hora, a.merma_pct, a.bizum, a.gratis_g, a.pago_minimo, a.coste_real_kg]);
+    setLimite(String(a.limite_mes_g ?? 0));
+    setMaxPend(String(a.max_pendientes ?? 0));
+  }, [a.precio_defecto, a.peso_defecto, a.luz_hora, a.merma_pct, a.bizum, a.gratis_g, a.pago_minimo, a.coste_real_kg, a.limite_mes_g, a.max_pendientes]);
 
   const ps = datos.pedidos;
   const hechos = ps.filter((p) => p.estado === "impreso" || p.estado === "entregado");
@@ -137,13 +142,15 @@ function Panel() {
           <label className="campo"><span>Gramos gratis por persona</span><input id="a-gratis" className="num" inputMode="numeric" value={gratisG} onChange={(e) => setGratisG(e.target.value)} placeholder="50" /></label>
           <label className="campo"><span>Lo que te cuesta a ti el kilo (€)</span><input id="a-real" className="num" inputMode="decimal" value={real} onChange={(e) => setReal(e.target.value)} placeholder="12" /></label>
           <label className="campo"><span>Pago mínimo (€): por debajo se acumula</span><input id="a-minimo" className="num" inputMode="decimal" value={minimo} onChange={(e) => setMinimo(e.target.value)} placeholder="0,50" /></label>
+          <label className="campo"><span>Gramos al mes por persona (0 = sin límite)</span><input id="a-limite" className="num" inputMode="numeric" value={limite} onChange={(e) => setLimite(e.target.value)} placeholder="500" /></label>
+          <label className="campo"><span>Pedidos esperando por persona</span><input id="a-maxpend" className="num" inputMode="numeric" value={maxPend} onChange={(e) => setMaxPend(e.target.value)} placeholder="5" /></label>
           <label className="campo"><span>Teléfono para Bizum</span><input id="a-bizum" className="num" inputMode="tel" autoComplete="off" value={bizum} onChange={(e) => setBizum(e.target.value)} placeholder="600 000 000" maxLength={30} /></label>
         </div>
         <p className="pista num">Ejemplo: 100 g a {eur(num(precio))}/{gramos(num(peso) || 1000)} = {eur((100 * num(precio)) / Math.max(1, num(peso)))}</p>
         <button
           className="boton primario"
           disabled={ocupado}
-          onClick={() => hacer(() => api.adminAjustes(clave!, { precio_defecto: num(precio) || 17.99, peso_defecto: Math.round(num(peso)) || 1000, luz_hora: num(luz), merma_pct: num(merma), bizum: bizum.trim(), gratis_g: Math.max(0, num(gratisG)), pago_minimo: Math.max(0, num(minimo)), coste_real_kg: Math.max(0, num(real)) }), "Precios guardados")}
+          onClick={() => hacer(() => api.adminAjustes(clave!, { precio_defecto: num(precio) || 17.99, peso_defecto: Math.round(num(peso)) || 1000, luz_hora: num(luz), merma_pct: num(merma), bizum: bizum.trim(), gratis_g: Math.max(0, num(gratisG)), pago_minimo: Math.max(0, num(minimo)), coste_real_kg: Math.max(0, num(real)), limite_mes_g: Math.max(0, Math.round(num(limite))), max_pendientes: Math.max(0, Math.round(num(maxPend))) }), "Precios guardados")}
         >
           Guardar precios
         </button>
@@ -153,6 +160,7 @@ function Panel() {
       <Faltan />
       <Rentabilidad />
       <IdeasTaller />
+      <Invitaciones />
       <Cuentas />
 
       {clave !== "" && (
@@ -200,13 +208,14 @@ function Cuentas() {
       aviso(e instanceof Error ? e.message : "No se ha podido cambiar", "error");
     }
   }
+  const sinGrupo = (lista || []).filter((c) => !c.taller && !c.grupo && c.grupo !== undefined).length;
   const hoy = (lista || []).filter((c) => c.ultima && Date.now() - new Date(c.ultima).getTime() < 864e5).length;
   const visibles = todas ? lista || [] : (lista || []).slice(0, 8);
   return (
     <section className="panel cuentas">
       <div className="cuentas-cab">
         <h2>Cuentas</h2>
-        {lista && <span className="etiqueta">{lista.length} en total · {hoy} hoy</span>}
+        {lista && <span className="etiqueta">{lista.length} en total · {hoy} hoy{sinGrupo ? ` · ${sinGrupo} sin acceso` : ""}</span>}
       </div>
       {fallo && <p className="error-txt">{fallo}</p>}
       {!lista && !fallo && <div className="cuenta-fila esqueleto" />}
@@ -227,6 +236,15 @@ function Cuentas() {
               <span className={c.ultima && Date.now() - new Date(c.ultima).getTime() < 864e5 ? "reciente" : ""}>{c.ultima ? hace(c.ultima) : c.confirmada ? "Sin entrar" : "Sin confirmar"}</span>
               <small>{c.veces} {c.veces === 1 ? "visita" : "visitas"} · {c.pedidos} {c.pedidos === 1 ? "pedido" : "pedidos"}</small>
             </div>
+            {c.grupo !== undefined && (
+              <div className="cuenta-grupo">
+                {c.taller ? (
+                  <span className="grupo-sel g-taller">Taller</span>
+                ) : (
+                  <ElegirGrupo userId={c.id} nombre={c.nombre} grupo={c.grupo} alCambiar={(g) => setLista((l) => l?.map((x) => (x.id === c.id ? { ...x, grupo: g } : x)) ?? null)} />
+                )}
+              </div>
+            )}
           </motion.div>
         ))}
       </AnimatePresence>

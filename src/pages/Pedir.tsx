@@ -1,3 +1,4 @@
+import { SinAcceso } from "../components/Grupos";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ICerrar, ICheck, IMas } from "../components/Iconos";
@@ -45,7 +46,7 @@ function nombreColor(hex: string): string {
 }
 
 export function Pedir({ ir }: { ir: (r: string) => void }) {
-  const { api, datos, yo, setYo, sesion, guardarToken, aviso, setResaltado, esAdmin, recargar } = useDatos();
+  const { api, datos, yo, setYo, sesion, guardarToken, aviso, setResaltado, esAdmin, recargar, acceso, sinAcceso } = useDatos();
   const filamentos = datos.filamentos.filter((f) => f.activo);
   const [nombre, setNombre] = useState(yo);
   const [urlTxt, setUrlTxt] = useState("");
@@ -113,7 +114,10 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   const necesitaPerfil = !!api.vistaPrevia && !bloqueado;
   const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && !necesitaPerfil && det.gramos > 0 && sinResolver.length === 0;
   const nColores = lineasCalc.filter((l) => l.gramos > 0).length;
-  const esPeticion = nColores > 4;
+  // gramos del mes: si con este pedido se pasa, llega como petición y decides tú
+  const limiteMes = !esAdmin && acceso && !acceso.taller ? acceso.limite_mes_g : 0;
+  const pasaLimite = limiteMes > 0 && acceso!.usado_mes_g + det.gramos > limiteMes;
+  const esPeticion = nColores > 4 || pasaLimite;
   const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : necesitaPerfil ? (buscando ? "Leyendo el modelo…" : "Elige un perfil") : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
 
 
@@ -204,6 +208,16 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   }
 
   if (api.cuentas && !sesion) return <Cuenta />;
+  if (sinAcceso)
+    return (
+      <div className="pagina">
+        <header className="cabecera-pagina">
+          <span className="sobretitulo">Nuevo pedido</span>
+          <h1>Pedir una figura</h1>
+        </header>
+        <SinAcceso />
+      </div>
+    );
 
   const fraccionRollo = det.gramos / Math.max(1, datos.ajustes.peso_defecto);
 
@@ -338,8 +352,17 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
             <AnimatePresence initial={false}>
               {esPeticion && (
                 <motion.div key="peticion" className="peticion-aviso" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                  <strong>Este modelo lleva {nColores} colores</strong>
-                  <span>La impresora pone 4 colores a la vez. Puedes enviarlo como petición y el taller te dirá si se puede hacer; mientras tanto no hace falta pagar.</span>
+                  {nColores > 4 ? (
+                    <>
+                      <strong>Este modelo lleva {nColores} colores</strong>
+                      <span>La impresora pone 4 colores a la vez. Puedes enviarlo como petición y el taller te dirá si se puede hacer; mientras tanto no hace falta pagar.</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong className="num">Este mes llevas {gramos(acceso?.usado_mes_g || 0)} de {gramos(limiteMes)}</strong>
+                      <span>Con este pedido te pasas. Puedes enviarlo como petición y el taller te dirá si se puede hacer; mientras tanto no hace falta pagar.</span>
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

@@ -39,6 +39,21 @@ export interface Ajustes {
   pago_minimo?: number;
   /** lo que te cuesta de verdad el kilo (para ver lo que ganas) */
   coste_real_kg?: number;
+  /** gramos por persona y mes; si se pasa, llega como petición (0 = sin límite) */
+  limite_mes_g?: number;
+  /** pedidos esperando a la vez por persona (0 = sin límite) */
+  max_pendientes?: number;
+}
+
+export type Grupo = "familia" | "amigos";
+
+/** tu grupo y lo que llevas pedido este mes */
+export interface Acceso {
+  taller: boolean;
+  grupo: Grupo | null;
+  limite_mes_g: number;
+  max_pendientes: number;
+  usado_mes_g: number;
 }
 
 export interface Aviso {
@@ -95,6 +110,8 @@ export interface CosteDetalle {
   /** gramos que han salido gratis en este pedido */
   gratis_g?: number;
   descuento?: number;
+  /** por qué llegó como petición */
+  motivo?: "colores" | "limite";
 }
 
 /** perfil de impresión de MakerWorld (gramos, tiempo y colores ya laminados) */
@@ -155,6 +172,8 @@ export interface Cuenta {
   veces: number;
   confirmada: boolean;
   pedidos: number;
+  grupo?: Grupo | null;
+  taller?: boolean;
 }
 
 export interface NuevaPieza {
@@ -243,6 +262,12 @@ export interface Api {
   pedirIgual?(id: string, nombre: string, copias: number, notas: string): Promise<{ id: string; token: string }>;
   /** el taller cambia el nombre de una cuenta */
   adminRenombrar?(clave: string, userId: string, nombre: string): Promise<void>;
+  /** grupos: familia y amigos */
+  miAcceso?(): Promise<Acceso | null>;
+  unirme?(codigo: string): Promise<Grupo>;
+  adminGrupo?(clave: string, userId: string, grupo: Grupo | ""): Promise<void>;
+  adminInvitaciones?(clave: string): Promise<{ grupo: Grupo; codigo: string }[]>;
+  adminNuevaInvitacion?(clave: string, grupo: Grupo): Promise<string>;
   /** cuentas creadas y cuándo han entrado (solo el taller) */
   adminCuentas?(clave: string): Promise<Cuenta[]>;
   /** apunta que has entrado (con la sesión iniciada) */
