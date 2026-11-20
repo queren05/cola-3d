@@ -2,7 +2,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { dominio, duracion, eur, fechaLarga, gramos, hace, num } from "../lib/formato";
-import { acumula, deudaDe } from "../lib/coste";
+import { acumula, aplicarGratis, calcularCoste, deudaDe, gratisRestante } from "../lib/coste";
+import { esMakerWorld, minutosA1mini, perfilInicial } from "../lib/perfiles";
+import { vistaPrevia } from "../lib/vista-previa";
 import { useDatos } from "../lib/store";
 import { ESTADOS, type Estado, type Linea, type Pedido } from "../lib/types";
 import { ICerrar, ICheck, IEnlace, IPapelera, IReloj } from "./Iconos";
@@ -252,6 +254,8 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {esAdmin && clave !== null && !esTaller(p) && esMakerWorld(p.url) && <Comprobar p={p} />}
 
             {!esTaller(p) && <div className="bloque">
               <span className="etiqueta">Coste</span>
@@ -550,6 +554,82 @@ function AccionesVitrina({ p, onCerrar }: { p: Pedido; onCerrar: () => void }) {
           </span>
           <button className="boton primario" disabled={ocupado} onClick={pedir}>{ocupado ? "Pidiendo…" : "Pedir igual"}</button>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** el taller comprueba que lo pedido coincide con el perfil de MakerWorld (gramos, tiempo y precio) */
+function Comprobar({ p }: { p: Pedido }) {
+  const { api, clave, datos, aviso, recargar } = useDatos();
+  const [estado, setEstado] = useState<"cargando" | "sin" | "listo">("cargando");
+  const [perfil, setPerfil] = useState<import("../lib/types").Perfil | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    vistaPrevia(p.url, api)
+      .then((v) => {
+        if (!vivo) return;
+        const pf = v?.perfiles?.length ? perfilInicial(v.perfiles, p.url) : undefined;
+        setPerfil(pf || null);
+        setEstado(pf ? "listo" : "sin");
+      })
+      .catch(() => vivo && setEstado("sin"));
+    return () => { vivo = false; };
+  }, [p.url, api]);
+
+  if (estado === "cargando") return <div className="bloque comprobar cargando"><span className="etiqueta">Comprobar con MakerWorld</span><span className="comprobar-txt">Leyendo el perfil…</span></div>;
+  if (!perfil) return <div className="bloque comprobar"><span className="etiqueta">Comprobar con MakerWorld</span><span className="comprobar-txt">No se ha podido leer el perfil de este modelo.</span></div>;
+
+  const pedidoG = Math.round(p.lineas.reduce((t, l) => t + l.gramos, 0) * 10) / 10; // por copia
+  const perfilG = Math.round(perfil.gramos * 10) / 10;
+  const perfilMin = minutosA1mini(perfil);
+  const difG = Math.round((pedidoG - perfilG) * 10) / 10;
+  const difMin = p.minutos - perfilMin;
+  const bien = Math.abs(difG) <= 1 && Math.abs(difMin) <= 2;
+  // lo que costaría con los gramos y el tiempo del perfil (mismos rollos, repartidos igual)
+  const k = pedidoG > 0 ? perfilG / pedidoG : 1;
+  const lineasPerfil = p.lineas.map((l) => ({ ...l, gramos: Math.round(l.gramos * k * 10) / 10 }));
+  // el regalo, como lo calcula la base de datos al recalcular: lo que le queda a esa persona sin contar este pedido
+  const deberia = aplicarGratis(calcularCoste(lineasPerfil, perfilMin, p.copias, datos.filamentos, datos.ajustes), gratisRestante(datos.pedidos, datos.ajustes, p.user_id, p.nombre, p.id)).total;
+
+  async function corregir() {
+    if (clave === null) return;
+    setOcupado(true);
+    try {
+      await api.adminPedido(clave, p.id, { lineas: lineasPerfil, minutos: perfilMin });
+      await recargar();
+      aviso(`Corregido: ahora cuesta ${eur(deberia)}`);
+    } catch (e) {
+      aviso(e instanceof Error ? e.message : "No se ha podido corregir", "error");
+    } finally {
+      setOcupado(false);
+    }
+  }
+  return (
+    <div className={`bloque comprobar ${bien ? "bien" : "mal"}`}>
+      <span className="etiqueta">Comprobar con MakerWorld</span>
+      <strong className="comprobar-tit">{bien ? "✓ Coincide con el perfil" : "⚠ No coincide con el perfil"}</strong>
+      <div className="comprobar-tabla">
+        <span />
+        <span>Pedido</span>
+        <span>Perfil</span>
+        <span>Gramos por copia</span>
+        <b className={`num${Math.abs(difG) > 1 ? " dif" : ""}`}>{gramos(pedidoG)}</b>
+        <b className="num">{gramos(perfilG)}</b>
+        <span>Tiempo por copia</span>
+        <b className={`num${Math.abs(difMin) > 2 ? " dif" : ""}`}>{duracion(p.minutos)}</b>
+        <b className="num">{duracion(perfilMin)}</b>
+        <span>Colores</span>
+        <b className="num">{p.lineas.filter((l) => l.gramos > 0).length}</b>
+        <b className="num">{perfil.colores.length}</b>
+      </div>
+      <span className="comprobar-txt">
+        Perfil «{perfil.titulo || "sin nombre"}»{perfil.impresora ? ` · ${perfil.impresora}` : ""}
+        {!bien && <> · Con lo del perfil costaría <b className="num">{eur(deberia)}</b> (ahora {eur(p.coste)}).</>}
+      </span>
+      {!bien && (
+        <button className="boton primario" disabled={ocupado} onClick={corregir}>{ocupado ? "Corrigiendo…" : "Corregir a lo del perfil"}</button>
       )}
     </div>
   );
