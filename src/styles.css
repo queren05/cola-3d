@@ -261,8 +261,7 @@ main { min-height: 70vh; }
 /* impresora animada */
 .impresora { color: currentColor; flex: none; }
 @keyframes crecer { 0% { opacity: 0; } 1%, 92% { opacity: 1; } 100% { opacity: 0; } }
-.impresora .boquilla { animation: boquilla 1.2s ease-in-out infinite alternate; }
-@media (prefers-reduced-motion: reduce) { .impresora .boquilla { animation: none; } }
+
 @keyframes boquilla { from { transform: translateX(-9px); } to { transform: translateX(9px); } }
 
 /* filtros */

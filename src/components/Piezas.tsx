@@ -100,9 +100,21 @@ export function EtiquetaColor({ nombre, color }: { nombre: string; color: string
 
 /** impresora dibujando capas: pieza que crece y boquilla que va y viene */
 export function Impresora({ size = 56 }: { size?: number }) {
-  // capas que se van imprimiendo una a una; al final se desvanecen juntas, sin parpadeos
-  const N = 6, CICLO = 7.2;
+  // cada capa se imprime en una pasada: las pares de izquierda a derecha y las impares de vuelta;
+  // la boquilla va justo encima, en el borde por el que crece la capa. Al final todo se desvanece suave
+  const N = 6, CICLO = 7.2, PASADA = 0.1;
   const inicio = (i: number) => 0.06 + i * 0.12;
+  const izq = -10, der = 10; // la capa va de x=18 a x=38 y la punta de la boquilla está en x=28
+  const xs: number[] = [izq], ys: number[] = [0], ts: number[] = [0];
+  for (let i = 0; i < N; i++) {
+    const [desde, hasta] = i % 2 ? [der, izq] : [izq, der];
+    xs.push(desde, hasta);
+    ys.push(-3.2 * i, -3.2 * i);
+    ts.push(inicio(i), inicio(i) + PASADA);
+  }
+  xs.push(xs[xs.length - 1], izq, izq);
+  ys.push(ys[ys.length - 1], 0, 0);
+  ts.push(0.86, 0.97, 1);
   return (
     <svg className="impresora" width={size} height={size} viewBox="0 0 56 56" aria-hidden="true">
       <rect x="6" y="6" width="44" height="44" rx="7" fill="none" stroke="currentColor" strokeWidth="2.2" opacity=".35" />
@@ -111,33 +123,22 @@ export function Impresora({ size = 56 }: { size?: number }) {
         {Array.from({ length: N }).map((_, i) => (
           <motion.rect
             key={i}
-            x={18 + (i % 2)}
+            x="18"
             y={38 - i * 3.2}
-            width={20 - (i % 2) * 2}
+            width="20"
             height="2.6"
             rx="1"
             fill="var(--hot)"
-            style={{ transformBox: "fill-box", transformOrigin: "left center" }}
+            style={{ transformBox: "fill-box", transformOrigin: i % 2 ? "right center" : "left center" }}
             initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: [0, 0, 1, 1, 1], opacity: [0, 0, 1, 1, 0] }}
-            transition={{ duration: CICLO, times: [0, inicio(i), inicio(i) + 0.1, 0.86, 0.98], ease: "easeInOut", repeat: Infinity }}
+            animate={{ scaleX: [0, 0, 1, 1, 1], opacity: [0, 1, 1, 1, 0] }}
+            transition={{ duration: CICLO, times: [0, inicio(i), inicio(i) + PASADA, 0.86, 0.97], ease: "linear", repeat: Infinity }}
           />
         ))}
       </g>
-      {/* la boquilla va justo encima de la capa que se imprime y sube con ellas (sin salirse del marco) */}
-      <motion.g
-        animate={{ y: [0, 0, 0, -3.2, -6.4, -9.6, -12.8, -16, -16, 0, 0] }}
-        transition={{
-          duration: CICLO,
-          times: [0, inicio(0), inicio(1) - 0.02, inicio(1), inicio(2), inicio(3), inicio(4), inicio(5), 0.86, 0.97, 1],
-          ease: "easeInOut",
-          repeat: Infinity,
-        }}
-      >
-        <g className="boquilla">
-          <rect x="23" y="27.5" width="10" height="6" rx="1.8" fill="currentColor" />
-          <path d="M26.5 33.5h3l-1.5 2.6z" fill="currentColor" />
-        </g>
+      <motion.g animate={{ x: xs, y: ys }} transition={{ duration: CICLO, times: ts, ease: "linear", repeat: Infinity }}>
+        <rect x="23" y="27.5" width="10" height="6" rx="1.8" fill="currentColor" />
+        <path d="M26.5 33.5h3l-1.5 2.6z" fill="currentColor" />
       </motion.g>
     </svg>
   );
