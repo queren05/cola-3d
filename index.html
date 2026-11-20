@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#eceff3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d1013" media="(prefers-color-scheme: dark)" />
+    <script>
+      // tema elegido a mano (claro u oscuro); sin elegir, el del móvil. Antes de pintar, para que no parpadee
+      (function () {
+        try {
+          var t = localStorage.getItem("cola3d-tema");
+          if (t === "light" || t === "dark") {
+            document.documentElement.setAttribute("data-theme", t);
+            document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) { m.setAttribute("content", t === "dark" ? "#0d1013" : "#eceff3"); });
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="Pide figuras para imprimir en 3D y mira cuánto cuestan." />
     <title>Cola 3D</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />

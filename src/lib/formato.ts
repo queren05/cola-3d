@@ -67,7 +67,10 @@ export const clave = (nombre: string) => nombre.trim().toLowerCase().normalize("
 export function colorPersona(nombre: string): string {
   let h = 0;
   for (const c of clave(nombre)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return `hsl(${h % 360} 62% 52%)`;
+  const tono = h % 360;
+  // amarillos, verdes y turquesas son muy claros: más oscuros para que la letra blanca se lea
+  const luz = tono >= 25 && tono <= 200 ? 36 : 48;
+  return `hsl(${tono} 62% ${luz}%)`;
 }
 
 /** texto legible sobre un color de filamento */

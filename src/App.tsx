@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IBobina, ICola, IGente, IPedir, ITaller, IVitrina } from "./components/Iconos";
 import { DetallePedido } from "./components/Pedido";
 import { MenuCuenta, NuevaClave } from "./components/Sesion";
+import { BotonTema } from "./components/Tema";
 import { Cola } from "./pages/Cola";
 import { Filamentos } from "./pages/Filamentos";
 import { Gente } from "./pages/Gente";
@@ -96,6 +97,7 @@ export default function App() {
             <div className="barra-estado">
               {api.modo === "local" && <span className="modo-prueba" title="Los pedidos se guardan solo en este navegador">Modo prueba</span>}
               {esAdmin && <span className="modo-taller">Taller</span>}
+              <BotonTema />
               {cuentas && (sesion ? <MenuCuenta ir={ir} /> : <button className="quien" onClick={() => ir("pedir")}>Entrar</button>)}
             </div>
           </div>
