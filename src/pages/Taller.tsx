@@ -5,6 +5,8 @@ import { Avatar, Numero, ClaveInput } from "../components/Piezas";
 import { eur, gramos, hace, num } from "../lib/formato";
 import type { Cuenta } from "../lib/types";
 import { useDatos } from "../lib/store";
+import { Faltan, Plan, Rentabilidad } from "../components/TallerExtra";
+import { IdeasTaller } from "../components/Ideas";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -72,6 +74,7 @@ function Panel() {
   const [bizum, setBizum] = useState("");
   const [gratisG, setGratisG] = useState("");
   const [minimo, setMinimo] = useState("");
+  const [real, setReal] = useState("");
   const [nueva, setNueva] = useState("");
   const [ocupado, setOcupado] = useState(false);
   useEffect(() => {
@@ -82,7 +85,8 @@ function Panel() {
     setBizum(a.bizum || "");
     setGratisG(String(a.gratis_g ?? 50));
     setMinimo(String(a.pago_minimo ?? 0.5).replace(".", ","));
-  }, [a.precio_defecto, a.peso_defecto, a.luz_hora, a.merma_pct, a.bizum, a.gratis_g, a.pago_minimo]);
+    setReal(String(a.coste_real_kg ?? 12).replace(".", ","));
+  }, [a.precio_defecto, a.peso_defecto, a.luz_hora, a.merma_pct, a.bizum, a.gratis_g, a.pago_minimo, a.coste_real_kg]);
 
   const ps = datos.pedidos;
   const hechos = ps.filter((p) => p.estado === "impreso" || p.estado === "entregado");
@@ -131,6 +135,7 @@ function Panel() {
           <label className="campo"><span>Luz y desgaste por hora (€)</span><input id="a-luz" className="num" inputMode="decimal" value={luz} onChange={(e) => setLuz(e.target.value)} /></label>
           <label className="campo"><span>Purga por cada color de más (%)</span><input id="a-merma" className="num" inputMode="decimal" value={merma} onChange={(e) => setMerma(e.target.value)} /></label>
           <label className="campo"><span>Gramos gratis por persona</span><input id="a-gratis" className="num" inputMode="numeric" value={gratisG} onChange={(e) => setGratisG(e.target.value)} placeholder="50" /></label>
+          <label className="campo"><span>Lo que te cuesta a ti el kilo (€)</span><input id="a-real" className="num" inputMode="decimal" value={real} onChange={(e) => setReal(e.target.value)} placeholder="12" /></label>
           <label className="campo"><span>Pago mínimo (€): por debajo se acumula</span><input id="a-minimo" className="num" inputMode="decimal" value={minimo} onChange={(e) => setMinimo(e.target.value)} placeholder="0,50" /></label>
           <label className="campo"><span>Teléfono para Bizum</span><input id="a-bizum" className="num" inputMode="tel" autoComplete="off" value={bizum} onChange={(e) => setBizum(e.target.value)} placeholder="600 000 000" maxLength={30} /></label>
         </div>
@@ -138,12 +143,16 @@ function Panel() {
         <button
           className="boton primario"
           disabled={ocupado}
-          onClick={() => hacer(() => api.adminAjustes(clave!, { precio_defecto: num(precio) || 17.99, peso_defecto: Math.round(num(peso)) || 1000, luz_hora: num(luz), merma_pct: num(merma), bizum: bizum.trim(), gratis_g: Math.max(0, num(gratisG)), pago_minimo: Math.max(0, num(minimo)) }), "Precios guardados")}
+          onClick={() => hacer(() => api.adminAjustes(clave!, { precio_defecto: num(precio) || 17.99, peso_defecto: Math.round(num(peso)) || 1000, luz_hora: num(luz), merma_pct: num(merma), bizum: bizum.trim(), gratis_g: Math.max(0, num(gratisG)), pago_minimo: Math.max(0, num(minimo)), coste_real_kg: Math.max(0, num(real)) }), "Precios guardados")}
         >
           Guardar precios
         </button>
       </section>
 
+      <Plan />
+      <Faltan />
+      <Rentabilidad />
+      <IdeasTaller />
       <Cuentas />
 
       {clave !== "" && (

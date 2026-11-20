@@ -50,6 +50,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
   }, [resaltado, setResaltado]);
 
   const [ver, setVer] = useVista("cola");
+  const [q, setQ] = useState("");
   const cola = useMemo(() => ordenCola(datos.pedidos, datos.ajustes), [datos.pedidos, datos.ajustes]);
   const posiciones = useMemo(() => {
     const m = new Map<string, number>();
@@ -57,7 +58,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
     return m;
   }, [cola]);
 
-  const lista = useMemo(() => {
+  const listaSinBuscar = useMemo(() => {
     const porFecha = (a: Pedido, b: Pedido) => b.actualizado.localeCompare(a.actualizado);
     switch (filtro) {
       case "cola":
@@ -69,7 +70,8 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
       default:
         return [...datos.pedidos].sort((a, b) => b.creado.localeCompare(a.creado));
     }
-  }, [filtro, cola, datos.pedidos, tokens, yo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filtro, cola, datos.pedidos, tokens, yo]);
+  const lista = q.trim() ? listaSinBuscar.filter((p) => `${p.titulo} ${p.nombre}`.toLowerCase().includes(q.trim().toLowerCase())) : listaSinBuscar; // eslint-disable-line react-hooks/exhaustive-deps
 
   const imprimiendo = cola.filter((p) => p.estado === "imprimiendo");
   const enCola = cola.filter((p) => p.estado === "pendiente");
@@ -125,6 +127,7 @@ export function Cola({ abrir, ir }: { abrir: (id: string) => void; ir: (r: strin
           </button>
         ))}
       </div>
+        {datos.pedidos.length > 6 && <input className="buscador mini" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar pieza o persona" aria-label="Buscar" />}
         <SelectorVista valor={ver} onCambio={setVer} id="cola" />
       </div>
 

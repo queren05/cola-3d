@@ -186,6 +186,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
             )}
 
             {(p.estado === "impreso" || p.estado === "entregado") && <AccionesVitrina p={p} onCerrar={onCerrar} />}
+            <Compartir p={p} />
 
             {(esAdmin || !!p.fotos?.length) && (
               <Fotos p={p} puede={esAdmin && clave !== null && !!api.subirFoto} guardar={(fotos) => api.adminPedido(clave ?? "", p.id, { fotos })} />
@@ -314,6 +315,8 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                 <p className="notas">{p.notas}</p>
               </div>
             )}
+
+            {(p.estado === "impreso" || p.estado === "entregado") && <Comentarios p={p} />}
 
             {(token || (!!sesion && p.user_id === sesion.id)) && p.estado === "pendiente" && (
               <div className="fila-botones">
@@ -637,6 +640,91 @@ function Comprobar({ p }: { p: Pedido }) {
       {!bien && (
         <button className="boton primario" disabled={ocupado} onClick={corregir}>{ocupado ? "Corrigiendo…" : "Corregir a lo del perfil"}</button>
       )}
+    </div>
+  );
+}
+
+/** compartir el enlace directo a esta pieza (WhatsApp, etc.) */
+function Compartir({ p }: { p: Pedido }) {
+  const { aviso } = useDatos();
+  const enlace = `${location.origin}${location.pathname}#/pieza/${p.id}`;
+  async function compartir() {
+    try {
+      if (navigator.share) await navigator.share({ title: p.titulo || "Cola 3D", text: `${p.titulo || "Mira esta pieza"} · Cola 3D`, url: enlace });
+      else {
+        await navigator.clipboard.writeText(enlace);
+        aviso("Enlace copiado");
+      }
+    } catch {
+      /* cancelado */
+    }
+  }
+  return (
+    <button className="boton compartir" onClick={compartir}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14" /></svg>
+      Compartir
+    </button>
+  );
+}
+
+/** comentarios de la vitrina */
+function Comentarios({ p }: { p: Pedido }) {
+  const { api, datos, sesion, esAdmin, aviso, recargar } = useDatos();
+  const [texto, setTexto] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const lista = (datos.comentarios || []).filter((c) => c.pedido_id === p.id);
+  if (!api.comentar) return null;
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    const t = texto.trim();
+    if (!t || ocupado) return;
+    setOcupado(true);
+    try {
+      await api.comentar!(p.id, t);
+      setTexto("");
+      await recargar();
+    } catch (err) {
+      aviso(err instanceof Error ? err.message : "No se ha podido comentar", "error");
+    } finally {
+      setOcupado(false);
+    }
+  }
+  async function borrar(id: string) {
+    try {
+      await api.borrarComentario?.(id);
+      await recargar();
+    } catch (err) {
+      aviso(err instanceof Error ? err.message : "No se ha podido borrar", "error");
+    }
+  }
+  const yo = api.modo === "local" ? "yo" : sesion?.id;
+  return (
+    <div className="bloque">
+      <span className="etiqueta">Comentarios{lista.length ? ` · ${lista.length}` : ""}</span>
+      <div className="comentarios">
+        <AnimatePresence initial={false}>
+          {lista.map((c) => (
+            <motion.div key={c.id} className="comentario" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}>
+              <Avatar nombre={c.nombre || "?"} size={30} uid={c.user_id} />
+              <div className="comentario-txt">
+                <span><b>{c.nombre || "Alguien"}</b> <small>{hace(c.creado)}</small></span>
+                <p>{c.texto}</p>
+              </div>
+              {(c.user_id === yo || esAdmin) && (
+                <button className="cerrar-mini" aria-label="Borrar comentario" onClick={() => borrar(c.id)}><ICerrar width={14} height={14} /></button>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {sesion || api.modo === "local" ? (
+          <form className="comentar" onSubmit={enviar}>
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escribe un comentario…" maxLength={500} aria-label="Comentario" />
+            <button className="boton primario" disabled={!texto.trim() || ocupado}>Enviar</button>
+          </form>
+        ) : (
+          <span className="comprobar-txt">Entra con tu cuenta para comentar.</span>
+        )}
+      </div>
     </div>
   );
 }

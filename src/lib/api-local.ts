@@ -68,7 +68,7 @@ export function apiLocal(): Api {
     cuentas: false,
     async cargar() {
       const d = leer();
-      return { ajustes: d.ajustes, filamentos: d.filamentos, pedidos: d.pedidos, votos: d.votos || [], guardados: [...new Set((d.listas || []).map((x) => x.pedido_id))], listas: d.listas || [], perfiles: {} };
+      return { ajustes: d.ajustes, filamentos: d.filamentos, pedidos: d.pedidos, votos: d.votos || [], guardados: [...new Set((d.listas || []).map((x) => x.pedido_id))], listas: d.listas || [], perfiles: {}, comentarios: d.comentarios || [], deseos: d.deseos || [], avisos: [] };
     },
     escuchar(cb) {
       oyentes.add(cb);
@@ -190,6 +190,33 @@ export function apiLocal(): Api {
       const o = d.pedidos.find((x) => x.id === id);
       if (!o) throw new Error("Esa pieza ya no está en la vitrina");
       return this.crearPedido({ nombre, url: o.url || "https://makerworld.com/", titulo: o.titulo, imagen: o.imagen || o.fotos?.[0] || "", lineas: o.lineas.length ? o.lineas : [{ filamento_id: null, nombre: "PLA", color: "#999999", gramos: 1 }], minutos: o.minutos, copias, notas });
+    },
+    // modo prueba: comentarios e ideas en este navegador
+    async leerAvisos() {},
+    async comentar(pedidoId, texto) {
+      const d = leer();
+      d.comentarios = [...(d.comentarios || []), { id: uid(), pedido_id: pedidoId, user_id: "yo", nombre: "Tú", texto: texto.trim().slice(0, 500), creado: new Date().toISOString() }];
+      guardar(d);
+    },
+    async borrarComentario(id) {
+      const d = leer();
+      d.comentarios = (d.comentarios || []).filter((c) => c.id !== id);
+      guardar(d);
+    },
+    async crearDeseo(texto) {
+      const d = leer();
+      d.deseos = [{ id: uid(), user_id: "yo", nombre: "Tú", texto: texto.trim().slice(0, 600), estado: "abierto", respuesta: "", enlace: "", creado: new Date().toISOString() }, ...(d.deseos || [])];
+      guardar(d);
+    },
+    async borrarDeseo(id) {
+      const d = leer();
+      d.deseos = (d.deseos || []).filter((x) => x.id !== id);
+      guardar(d);
+    },
+    async adminDeseo(clave, id, c) {
+      const d = await admin(clave);
+      d.deseos = (d.deseos || []).map((x) => (x.id === id ? { ...x, ...c } : x));
+      guardar(d);
     },
     async adminCrearPieza(clave, n) {
       const d = await admin(clave);

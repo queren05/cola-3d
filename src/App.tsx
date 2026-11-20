@@ -4,6 +4,7 @@ import { IBobina, ICola, IGente, IPedir, ITaller, IVitrina } from "./components/
 import { DetallePedido } from "./components/Pedido";
 import { MenuCuenta, NuevaClave } from "./components/Sesion";
 import { BotonTema } from "./components/Tema";
+import { Campana } from "./components/Avisos";
 import { Cola } from "./pages/Cola";
 import { Filamentos } from "./pages/Filamentos";
 import { Gente } from "./pages/Gente";
@@ -48,6 +49,14 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [seccion]);
+  // enlace directo a una pieza (#/pieza/<id>): abre su ficha encima de la vitrina
+  useEffect(() => {
+    if (ruta[0] === "pieza" && ruta[1]) {
+      const id = ruta[1];
+      ir("vitrina");
+      setTimeout(() => abrir(id), 60);
+    }
+  }, [ruta[0], ruta[1]]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pedido = abierto ? datos.pedidos.find((p) => p.id === abierto) : undefined;
   const pendientes = datos.pedidos.filter((p) => p.estado === "pendiente").length;
@@ -102,6 +111,7 @@ export default function App() {
               {api.modo === "local" && <span className="modo-prueba" title="Los pedidos se guardan solo en este navegador">Modo prueba</span>}
               {esAdmin && <span className="modo-taller">Taller</span>}
               <BotonTema />
+              <Campana abrir={abrir} />
               {cuentas && (sesion ? <MenuCuenta ir={ir} /> : <button className="quien" onClick={() => ir("pedir")}>Entrar</button>)}
             </div>
           </div>

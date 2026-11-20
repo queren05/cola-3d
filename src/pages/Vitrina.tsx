@@ -37,6 +37,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
   const { datos, cargado, esAdmin, sesion, api } = useDatos();
   const [nueva, setNueva] = useState(false);
   const [ver, setVer] = useVista("vitrina");
+  const [q, setQ] = useState("");
   const [orden, setOrden] = useState<Orden>("recientes");
   const [soloFotos, setSoloFotos] = useState(false);
   const [soloGuardadas, setSoloGuardadas] = useState(false);
@@ -71,7 +72,8 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
         (!persona || claveNombre(p.nombre) === persona) &&
         enTamano(g(p), tamano) &&
         enPrecio(p.coste, precio) &&
-        (!material || materialDe(p).includes(material)),
+        (!material || materialDe(p).includes(material)) &&
+        (!q.trim() || `${p.titulo} ${p.nombre}`.toLowerCase().includes(q.trim().toLowerCase())),
     );
     const porFecha = (a: Pedido, b: Pedido) => cuando(b).localeCompare(cuando(a));
     return l.sort((a, b) =>
@@ -80,7 +82,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
         : orden === "caras" ? b.coste - a.coste || porFecha(a, b)
         : porFecha(a, b),
     );
-  }, [hechas, soloFotos, soloGuardadas, guardadas, persona, tamano, precio, material, orden, gustan]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hechas, soloFotos, soloGuardadas, guardadas, persona, tamano, precio, material, orden, gustan, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtrando = soloFotos || soloGuardadas || !!persona || !!tamano || !!precio || !!material;
   const g = hechas.reduce((t, p) => t + (p.coste_detalle?.gramos || 0), 0);
@@ -123,6 +125,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
               </button>
             ))}
           </div>
+          {hechas.length > 6 && <input className="buscador mini" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" aria-label="Buscar" />}
           <SelectorVista valor={ver} onCambio={setVer} id="vitrina" />
           </div>
           <div className="v-chips">

@@ -87,11 +87,14 @@ if (typeof Deno !== "undefined")
     try {
       const { url } = await req.json();
       let u = new URL(String(url));
-      if (!/^https?:$/.test(u.protocol)) throw new Error("enlace no válido");
+      // solo MakerWorld (y sus enlaces cortos): así nadie puede usar esta función para descargar otras webs
+      const permitido = (h: string) => /(^|\.)(makerworld\.com(\.cn)?|bambulab\.com)$/i.test(h);
+      if (u.protocol !== "https:" || !permitido(u.hostname)) throw new Error("solo enlaces de MakerWorld");
       // enlaces cortos de la app (Bambu Handy): seguir la redirección
       if (!/models\/\d+/.test(u.pathname)) {
         const r = await fetch(u.href, { headers: { "User-Agent": UA }, redirect: "follow" }).catch(() => null);
         if (r?.url) u = new URL(r.url);
+        if (!permitido(u.hostname)) throw new Error("solo enlaces de MakerWorld");
       }
       let out: { titulo?: string; imagen?: string; perfiles?: Perfil[] } = {};
       const mw = /makerworld\.com(\.cn)?$/.test(u.hostname) && u.pathname.match(/models\/(\d+)/);

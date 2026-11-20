@@ -37,6 +37,34 @@ export interface Ajustes {
   gratis_g: number;
   /** por debajo de esto no se pide pagar: se acumula (Bizum no deja menos de 0,50 €) */
   pago_minimo?: number;
+  /** lo que te cuesta de verdad el kilo (para ver lo que ganas) */
+  coste_real_kg?: number;
+}
+
+export interface Aviso {
+  id: string;
+  pedido_id: string | null;
+  texto: string;
+  creado: string;
+  leido: boolean;
+}
+export interface Comentario {
+  id: string;
+  pedido_id: string;
+  user_id: string;
+  nombre: string;
+  texto: string;
+  creado: string;
+}
+export interface Deseo {
+  id: string;
+  user_id: string;
+  nombre: string;
+  texto: string;
+  estado: "abierto" | "encontrado" | "descartado";
+  respuesta: string;
+  enlace: string;
+  creado: string;
 }
 
 export interface Linea {
@@ -169,6 +197,11 @@ export interface Datos {
   listas?: { pedido_id: string; lista: string }[];
   /** foto y nombre de cada cuenta */
   perfiles?: Record<string, { nombre: string; avatar: string }>;
+  /** tus avisos (pedidos que cambian, comentarios, respuestas del taller) */
+  avisos?: Aviso[];
+  comentarios?: Comentario[];
+  /** ideas: las tuyas (o todas, si eres el taller) */
+  deseos?: Deseo[];
 }
 
 export interface Sesion {
@@ -200,6 +233,12 @@ export interface Api {
   guardarPerfil?(nombre: string, avatar: string): Promise<void>;
   /** sube tu foto de perfil y devuelve su dirección */
   subirAvatar?(foto: Blob): Promise<string>;
+  leerAvisos?(): Promise<void>;
+  comentar?(pedidoId: string, texto: string): Promise<void>;
+  borrarComentario?(id: string): Promise<void>;
+  crearDeseo?(texto: string): Promise<void>;
+  borrarDeseo?(id: string): Promise<void>;
+  adminDeseo?(clave: string, id: string, cambios: { estado?: Deseo["estado"]; respuesta?: string; enlace?: string }): Promise<void>;
   /** pide una pieza de la vitrina tal cual */
   pedirIgual?(id: string, nombre: string, copias: number, notas: string): Promise<{ id: string; token: string }>;
   /** el taller cambia el nombre de una cuenta */

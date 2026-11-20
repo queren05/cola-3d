@@ -6,7 +6,55 @@
   "background_color": "#0d1013",
   "theme_color": "#0d1013",
   "icons": [
-    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" },
-    { "src": "icono-180.png", "sizes": "180x180", "type": "image/png" }
+    {
+      "src": "icono-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "id": "./",
+  "scope": "./",
+  "description": "Pide figuras para imprimir en 3D y mira cuánto cuestan.",
+  "lang": "es",
+  "orientation": "portrait",
+  "shortcuts": [
+    {
+      "name": "Pedir una figura",
+      "url": "./#/pedir",
+      "icons": [
+        {
+          "src": "icono-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Vitrina",
+      "url": "./#/vitrina",
+      "icons": [
+        {
+          "src": "icono-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

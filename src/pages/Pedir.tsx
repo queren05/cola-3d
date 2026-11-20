@@ -5,6 +5,7 @@ import { Bobina, EtiquetaColor, Muestra, Numero, ClaveInput } from "../component
 import { aplicarGratis, calcularCoste, gratisRestante, juntarLineas } from "../lib/coste";
 import { dominio, duracion, eur, gramos, limpiarUrl, n1, num, tintaSobre } from "../lib/formato";
 import { useDatos } from "../lib/store";
+import { Ideas } from "../components/Ideas";
 import { alternativas, esA1mini, esMakerWorld, lineasDePerfil, tieneMaterial, type Falta, minutosA1mini, perfilInicial, urlConPerfil } from "../lib/perfiles";
 import type { Linea, Perfil } from "../lib/types";
 import { vistaPrevia, type Vista } from "../lib/vista-previa";
@@ -502,6 +503,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
         </aside>
       </form>
       {hecho && <Confeti />}
+      <Ideas />
     </div>
   );
 }

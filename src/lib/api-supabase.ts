@@ -25,21 +25,30 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       const err = a.error || f.error || p.error;
       if (err) throw new Error(err.message);
       const aj: Ajustes = a.data
-        ? { precio_defecto: num(a.data.precio_defecto), peso_defecto: num(a.data.peso_defecto), luz_hora: num(a.data.luz_hora), merma_pct: num(a.data.merma_pct), bizum: String(a.data.bizum || ""), gratis_g: a.data.gratis_g === undefined || a.data.gratis_g === null ? 50 : num(a.data.gratis_g), pago_minimo: a.data.pago_minimo === undefined || a.data.pago_minimo === null ? 0.5 : num(a.data.pago_minimo) }
+        ? { precio_defecto: num(a.data.precio_defecto), peso_defecto: num(a.data.peso_defecto), luz_hora: num(a.data.luz_hora), merma_pct: num(a.data.merma_pct), bizum: String(a.data.bizum || ""), gratis_g: a.data.gratis_g === undefined || a.data.gratis_g === null ? 50 : num(a.data.gratis_g), pago_minimo: a.data.pago_minimo === undefined || a.data.pago_minimo === null ? 0.5 : num(a.data.pago_minimo), coste_real_kg: a.data.coste_real_kg === undefined || a.data.coste_real_kg === null ? 12 : num(a.data.coste_real_kg) }
         : AJUSTES_DEFECTO;
       const filamentos = (f.data || []).map((x) => ({ ...x, precio: x.precio === null ? null : Number(x.precio), peso: num(x.peso), stock_g: num(x.stock_g) })) as Filamento[];
       const pedidos = (p.data || []).map((x) => ({ ...x, coste: num(x.coste) })) as Pedido[];
       // me gusta y guardados (si aún no existen las tablas, la web sigue funcionando)
       const sesionActiva = cuentas ? (await sb.auth.getSession()).data.session : null;
-      const [v, g, pf] = await Promise.all([
+      const nada = Promise.resolve({ data: [] as never[], error: null });
+      const [v, g, pf, av, co, de] = await Promise.all([
         sb.from("votos").select("pedido_id,user_id"),
-        sesionActiva ? sb.from("guardados").select("pedido_id,lista") : Promise.resolve({ data: [] as { pedido_id: string; lista: string }[], error: null }),
+        sesionActiva ? sb.from("guardados").select("pedido_id,lista") : nada,
         sb.from("perfiles").select("user_id,nombre,avatar"),
+        sesionActiva ? sb.from("avisos").select("id,pedido_id,texto,creado,leido").order("creado", { ascending: false }).limit(40) : nada,
+        sb.from("comentarios").select("id,pedido_id,user_id,nombre,texto,creado").order("creado"),
+        sesionActiva ? sb.from("deseos").select("*").order("creado", { ascending: false }) : nada,
       ]);
       const listas = g.error ? [] : ((g.data || []) as { pedido_id: string; lista?: string }[]).map((x) => ({ pedido_id: x.pedido_id, lista: x.lista || "Guardados" }));
       const perfiles: Datos["perfiles"] = {};
       for (const x of (pf.error ? [] : pf.data || []) as { user_id: string; nombre: string; avatar: string }[]) perfiles[x.user_id] = { nombre: x.nombre, avatar: x.avatar };
-      return { ajustes: aj, filamentos, pedidos, votos: v.error ? [] : (v.data as Datos["votos"]) || [], guardados: [...new Set(listas.map((x) => x.pedido_id))], listas, perfiles };
+      return {
+        ajustes: aj, filamentos, pedidos, votos: v.error ? [] : (v.data as Datos["votos"]) || [], guardados: [...new Set(listas.map((x) => x.pedido_id))], listas, perfiles,
+        avisos: av.error ? [] : (av.data as Datos["avisos"]) || [],
+        comentarios: co.error ? [] : (co.data as Datos["comentarios"]) || [],
+        deseos: de.error ? [] : (de.data as Datos["deseos"]) || [],
+      };
     },
     escuchar(cb) {
       let t: ReturnType<typeof setTimeout> | undefined;
@@ -54,6 +63,9 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
         .on("postgres_changes", { event: "*", schema: "public", table: "ajustes" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "votos" }, aviso)
         .on("postgres_changes", { event: "*", schema: "public", table: "perfiles" }, aviso)
+        .on("postgres_changes", { event: "*", schema: "public", table: "avisos" }, aviso)
+        .on("postgres_changes", { event: "*", schema: "public", table: "comentarios" }, aviso)
+        .on("postgres_changes", { event: "*", schema: "public", table: "deseos" }, aviso)
         .subscribe();
       // por si el tiempo real se corta: refresco al volver a la pestaña
       const vis = () => document.visibilityState === "visible" && aviso();
@@ -86,6 +98,12 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
     adminCuentas: (clave) => rpc<Cuenta[]>("admin_cuentas", { p_clave: clave }),
     adminRenombrar: (clave, userId, nombre) => rpc("admin_renombrar", { p_clave: clave, p_user: userId, p_nombre: nombre }),
     votar: (id) => rpc<boolean>("votar", { p_id: id }),
+    leerAvisos: () => rpc("leer_avisos", {}),
+    comentar: (id, texto) => rpc("comentar", { p_id: id, p_texto: texto }),
+    borrarComentario: (id) => rpc("borrar_comentario", { p_id: id }),
+    crearDeseo: (texto) => rpc("crear_deseo", { p_texto: texto }),
+    borrarDeseo: (id) => rpc("borrar_deseo", { p_id: id }),
+    adminDeseo: (clave, id, cambios) => rpc("admin_deseo", { p_clave: clave, p_id: id, p: cambios }),
     guardar: (id) => rpc<boolean>("guardar", { p_id: id }),
     guardarEn: (id, lista) => rpc<boolean>("guardar_en", { p_id: id, p_lista: lista }),
     renombrarLista: (lista, nueva) => rpc("renombrar_lista", { p_lista: lista, p_nueva: nueva }),
