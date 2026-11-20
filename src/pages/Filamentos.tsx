@@ -158,7 +158,7 @@ export function Filamentos() {
 }
 
 function EditorFilamento({ f, onCerrar }: { f: Partial<Filamento>; onCerrar: () => void }) {
-  const { api, clave, datos, aviso } = useDatos();
+  const { api, clave, datos, aviso, recargar, quitar } = useDatos();
   const nuevo = !f.id;
   const [nombre, setNombre] = useState(f.nombre ?? "");
   const [material, setMaterial] = useState(f.material ?? "PLA");
@@ -177,6 +177,7 @@ function EditorFilamento({ f, onCerrar }: { f: Partial<Filamento>; onCerrar: () 
       await fn();
       aviso(ok);
       onCerrar();
+      await recargar();
     } catch (e) {
       aviso(e instanceof Error ? e.message : "No se ha podido guardar", "error");
       setOcupado(false);
@@ -231,7 +232,7 @@ function EditorFilamento({ f, onCerrar }: { f: Partial<Filamento>; onCerrar: () 
                 <button className="boton peligro-suave" onClick={() => setBorrar(true)}><IPapelera width={16} height={16} /> Borrar</button>
               ) : (
                 <>
-                  <button className="boton peligro" disabled={ocupado} onClick={() => hacer(() => api.adminBorrarFilamento(clave!, f.id!), "Rollo borrado")}>Sí, borrar</button>
+                  <button className="boton peligro" disabled={ocupado} onClick={() => hacer(async () => { await api.adminBorrarFilamento(clave!, f.id!); quitar(f.id!); }, "Rollo borrado")}>Sí, borrar</button>
                   <button className="boton" onClick={() => setBorrar(false)}>No</button>
                 </>
               ))}

@@ -58,8 +58,11 @@ export function apiSupabase(url: string, key: string, cuentas: boolean, previewF
       // por si el tiempo real se corta: refresco al volver a la pestaña
       const vis = () => document.visibilityState === "visible" && aviso();
       document.addEventListener("visibilitychange", vis);
+      // y cada 30 s con la pestaña delante, por si algún aviso del servidor no llega
+      const cada = setInterval(() => document.visibilityState === "visible" && cb(), 30_000);
       return () => {
         clearTimeout(t);
+        clearInterval(cada);
         document.removeEventListener("visibilitychange", vis);
         sb.removeChannel(ch);
       };

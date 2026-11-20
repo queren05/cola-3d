@@ -63,7 +63,7 @@ function Entrar() {
 }
 
 function Panel() {
-  const { api, clave, datos, aviso, salirTaller } = useDatos();
+  const { api, clave, datos, aviso, salirTaller, recargar } = useDatos();
   const a = datos.ajustes;
   const [precio, setPrecio] = useState("");
   const [peso, setPeso] = useState("");
@@ -98,6 +98,7 @@ function Panel() {
     try {
       await fn();
       aviso(ok);
+      await recargar();
     } catch (e) {
       aviso(e instanceof Error ? e.message : "No se ha podido guardar", "error");
     } finally {

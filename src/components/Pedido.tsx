@@ -95,7 +95,7 @@ export function TarjetaPedido({ p, posicion, onAbrir, mio, resaltar }: { p: Pedi
 
 /** Ficha del pedido: foto grande, estados con fecha, desglose del coste y, en el taller, todo lo editable. */
 export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void }) {
-  const { api, clave, esAdmin, tokens, aviso, datos, esMio, sesion } = useDatos();
+  const { api, clave, esAdmin, tokens, aviso, datos, esMio, sesion, recargar, quitar } = useDatos();
   const [ocupado, setOcupado] = useState(false);
   const [borrar, setBorrar] = useState(false);
   const [editar, setEditar] = useState(false);
@@ -116,6 +116,8 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
     try {
       await f();
       if (ok) aviso(ok);
+      // se ve al momento, sin esperar al aviso del servidor
+      await recargar();
     } catch (e) {
       aviso(e instanceof Error ? e.message : "No se ha podido guardar", "error");
     } finally {
@@ -244,7 +246,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
                     <button className="boton peligro-suave" onClick={() => setBorrar(true)}><IPapelera width={16} height={16} /> Borrar</button>
                   ) : (
                     <>
-                      <button className="boton peligro" disabled={ocupado} onClick={() => hacer(async () => { await api.adminBorrarPedido(clave, p.id); onCerrar(); }, "Pedido borrado")}>Sí, borrar</button>
+                      <button className="boton peligro" disabled={ocupado} onClick={() => hacer(async () => { await api.adminBorrarPedido(clave, p.id); onCerrar(); quitar(p.id); }, "Pedido borrado")}>Sí, borrar</button>
                       <button className="boton" onClick={() => setBorrar(false)}>No</button>
                     </>
                   )}

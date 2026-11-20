@@ -61,6 +61,8 @@ interface Ctx {
   resaltado: string | null;
   /** pedido hecho por ti (tu cuenta, este navegador o tu nombre) */
   esMio: (p: Pedido) => boolean;
+  /** quita algo de la pantalla al momento (pedido, pieza o rollo borrado), sin esperar a recargar */
+  quitar: (id: string) => void;
   setResaltado: (id: string | null) => void;
 }
 
@@ -161,6 +163,8 @@ export function Proveedor({ children }: { children: ReactNode }) {
       aviso,
       resaltado,
       setResaltado,
+      quitar: (id: string) =>
+        setDatos((d) => ({ ...d, pedidos: d.pedidos.filter((x) => x.id !== id), filamentos: d.filamentos.filter((x) => x.id !== id) })),
       esMio: (p: Pedido) => {
         if (tokens[p.id]) return true;
         if (sesion) return p.user_id === sesion.id || (!p.user_id && claveNombre(p.nombre) === claveNombre(sesion.nombre));
