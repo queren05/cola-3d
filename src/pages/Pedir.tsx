@@ -82,7 +82,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
       setVista(v);
       setTitulo((t) => t || v?.titulo || "");
       const ini = v?.perfiles?.length ? perfilInicial(v.perfiles, url) : undefined;
-      if (ini?.a1mini) aplicar(ini);
+      if (ini) aplicar(ini);
       else setPerfilId(null);
       setBuscando(false);
     }, 450);
@@ -106,19 +106,18 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
   // ordena: primero los hechos para la A1 mini, luego los que también le sirven
   const perfiles = useMemo(() => [...(vista?.perfiles || [])].sort((a, b) => Number(esA1mini(b)) - Number(esA1mini(a)) || Number(b.a1mini) - Number(a.a1mini)), [vista]);
   const mw = !!url && esMakerWorld(url);
-  // con los perfiles a mano: hace falta uno que valga para la A1 mini
-  const sinPerfil = mw && perfiles.length > 0 && !perfiles.some((p) => p.a1mini);
-  const perfilMalo = perfiles.find((p) => p.id === perfilId && !p.a1mini);
+  // perfil hecho para otra impresora (P1S, X1…): se puede pedir, pero llega como petición
+  const perfilOtra = perfiles.find((p) => p.id === perfilId && !p.a1mini);
   // con perfil de MakerWorld, los gramos y el tiempo los marca el perfil: solo se cambia el color de cada parte
   const bloqueado = !!perfilId && perfiles.some((p) => p.id === perfilId);
   const necesitaPerfil = !!api.vistaPrevia && !bloqueado;
-  const listo = !!nombreFinal && mw && !sinPerfil && !perfilMalo && !necesitaPerfil && det.gramos > 0 && sinResolver.length === 0;
+  const listo = !!nombreFinal && mw && !necesitaPerfil && det.gramos > 0 && sinResolver.length === 0;
   const nColores = lineasCalc.filter((l) => l.gramos > 0).length;
   // gramos del mes: si con este pedido se pasa, llega como petición y decides tú
   const limiteMes = !esAdmin && acceso && !acceso.taller ? acceso.limite_mes_g : 0;
   const pasaLimite = limiteMes > 0 && acceso!.usado_mes_g + det.gramos > limiteMes;
-  const esPeticion = nColores > 4 || pasaLimite;
-  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : sinPerfil || perfilMalo ? "Sin perfil para A1 mini" : necesitaPerfil ? (buscando ? "Leyendo el modelo…" : "Elige un perfil") : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
+  const esPeticion = !!perfilOtra || nColores > 4 || pasaLimite;
+  const falta = !nombreFinal ? "Pon tu nombre" : !url ? "Pega el enlace" : !mw ? "Solo MakerWorld" : necesitaPerfil ? (buscando ? "Leyendo el modelo…" : "Elige un perfil") : det.gramos <= 0 ? "Pon los gramos" : sinResolver.length ? "Elige otro color" : "";
 
 
   function aplicar(p: Perfil) {
@@ -191,6 +190,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
       const r = await api.crearPedido({
         nombre: nombreFinal, url: urlConPerfil(url, perfiles.find((p) => p.id === perfilId)), titulo: titulo.trim(), imagen: vista?.imagen || "",
         lineas: lineasCalc.filter((l) => l.gramos > 0).map((l) => ({ ...l, nombre: l.nombre || "Otro color" })),
+        otra_impresora: !!perfilOtra || undefined,
         minutos, copias, notas: [notas.trim(), ...lineas.filter((l) => l.cambio && num(l.txt) > 0).map((l) => l.cambio)].filter(Boolean).join("\n"),
       });
       guardarToken(r.id, r.token);
@@ -256,7 +256,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
           <label className="campo">
             <span>Enlace de la figura</span>
             <input id="p-url" value={urlTxt} onChange={(e) => setUrlTxt(e.target.value)} placeholder="https://makerworld.com/es/models/…" inputMode="url" autoComplete="off" aria-invalid={!!url && !mw} />
-            <span className={`requisito${url && !mw ? " mal" : ""}`}>Solo modelos de MakerWorld con perfil de impresión para la A1 mini</span>
+            <span className={`requisito${url && !mw ? " mal" : ""}`}>Solo modelos de MakerWorld</span>
           </label>
 
           <AnimatePresence>
@@ -291,7 +291,7 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
                   {perfiles.map((p, i) => {
                     const sel = p.id === perfilId;
                     return (
-                      <motion.button type="button" key={p.id} className={`perfil${sel ? " sel" : ""}`} ref={sel ? (el: HTMLButtonElement | null) => el && requestAnimationFrame(() => el.parentElement?.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft - 2, behavior: "smooth" })) : undefined} onClick={() => aplicar(p)} aria-pressed={sel} disabled={!p.a1mini} whileTap={{ scale: 0.97 }}
+                      <motion.button type="button" key={p.id} className={`perfil${sel ? " sel" : ""}`} ref={sel ? (el: HTMLButtonElement | null) => el && requestAnimationFrame(() => el.parentElement?.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft - 2, behavior: "smooth" })) : undefined} onClick={() => aplicar(p)} aria-pressed={sel} whileTap={{ scale: 0.97 }}
                         initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i, duration: 0.35, ease }}>
                         <span className="perfil-titulo">{p.titulo || "Perfil"}</span>
                         <span className="perfil-datos num">
@@ -352,7 +352,12 @@ export function Pedir({ ir }: { ir: (r: string) => void }) {
             <AnimatePresence initial={false}>
               {esPeticion && (
                 <motion.div key="peticion" className="peticion-aviso" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                  {nColores > 4 ? (
+                  {perfilOtra ? (
+                    <>
+                      <strong>Este perfil es para la {perfilOtra.impresora || "otra impresora"}</strong>
+                      <span>Puede que no quepa en la A1 mini o haya que prepararlo de nuevo. Puedes enviarlo como petición y el taller te dirá si se puede hacer; mientras tanto no hace falta pagar.</span>
+                    </>
+                  ) : nColores > 4 ? (
                     <>
                       <strong>Este modelo lleva {nColores} colores</strong>
                       <span>La impresora pone 4 colores a la vez. Puedes enviarlo como petición y el taller te dirá si se puede hacer; mientras tanto no hace falta pagar.</span>

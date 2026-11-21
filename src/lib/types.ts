@@ -112,7 +112,7 @@ export interface CosteDetalle {
   gratis_g?: number;
   descuento?: number;
   /** por qué llegó como petición */
-  motivo?: "colores" | "limite";
+  motivo?: "colores" | "limite" | "impresora";
 }
 
 /** perfil de impresión de MakerWorld (gramos, tiempo y colores ya laminados) */
@@ -202,6 +202,8 @@ export interface NuevoPedido {
   minutos: number;
   copias: number;
   notas: string;
+  /** perfil hecho para otra impresora: llega como petición */
+  otra_impresora?: boolean;
 }
 
 export type CambiosPedido = Partial<Pick<Pedido, "estado" | "pagado" | "lineas" | "minutos" | "copias" | "titulo" | "imagen" | "notas" | "prioridad" | "fotos" | "peticion" | "acumulado">>;
