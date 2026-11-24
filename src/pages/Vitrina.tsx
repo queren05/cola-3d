@@ -184,7 +184,7 @@ export function Vitrina({ abrir }: { abrir: (id: string) => void }) {
                 whileHover={{ y: -4 }}
               >
                 <div className={`vitrina-foto${p.fotos?.length ? "" : " sin-foto"}`}>
-                  <Portada p={p} />
+                  <Portada p={p} pasar />
                   {(p.fotos?.length || 0) > 1 && <span className="vitrina-num">{p.fotos!.length} fotos</span>}
                   {!p.fotos?.length && <span className="vitrina-modelo">Foto del modelo</span>}
                   {puedeVotar && <BotonGuardar id={p.id} guardada={guardadas.has(p.id)} />}

@@ -15,13 +15,22 @@ import { BotonGuardar, BotonGusta } from "../pages/Vitrina";
 const ease = [0.22, 1, 0.36, 1] as const;
 
 /** foto de la figura; sin foto, franjas con los colores de filamento como capas impresas */
-export function Portada({ p, alto, layoutId }: { p: Pedido; alto?: number; layoutId?: string }) {
+export function Portada({ p, alto, layoutId, pasar }: { p: Pedido; alto?: number; layoutId?: string; pasar?: boolean }) {
   const [rota, setRota] = useState(false);
+  const [vista, setVista] = useState(0);
   const colores = p.lineas.map((l) => l.color).filter(Boolean);
   const franjas = colores.length ? colores : ["var(--line)"];
+  const fotos = p.fotos || [];
   return (
-    <motion.div layoutId={layoutId} className="portada" style={alto ? { height: alto } : undefined} transition={{ duration: 0.45, ease }}>
-      {(p.fotos?.[0] || p.imagen) && !rota ? (
+    <motion.div layoutId={layoutId} className={`portada${pasar && fotos.length && !rota ? " con-fotos" : ""}`} style={alto ? { height: alto } : undefined} transition={{ duration: 0.45, ease }}>
+      {pasar && fotos.length > 1 ? (
+        <>
+          <div className="carrusel" onScroll={(e) => { const el = e.currentTarget; setVista(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}>
+            {fotos.map((u) => <img key={u} src={u} alt="" loading="lazy" draggable={false} />)}
+          </div>
+          <div className="puntos" aria-hidden="true">{fotos.map((u, i) => <i key={u} className={i === vista ? "on" : ""} />)}</div>
+        </>
+      ) : (p.fotos?.[0] || p.imagen) && !rota ? (
         <img src={p.fotos?.[0] || p.imagen} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setRota(true)} />
       ) : (
         <div className="capas-portada" aria-hidden="true">
@@ -145,7 +154,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
           <ICerrar />
         </button>
         <div className="hoja-scroll">
-          <Portada p={p} layoutId={`img-${p.id}`} />
+          <Portada p={p} layoutId={`img-${p.id}`} pasar />
           <motion.div className="hoja-cuerpo" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.4, ease }}>
             <div className="hoja-cabecera">
               <div style={{ minWidth: 0 }}>
@@ -473,7 +482,7 @@ export async function reducir(f: File): Promise<Blob> {
 function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fotos: string[]) => Promise<void> }) {
   const { api, aviso } = useDatos();
   const [subiendo, setSubiendo] = useState(0);
-  const [grande, setGrande] = useState<string | null>(null);
+  const [grande, setGrande] = useState<number | null>(null);
   const fotos = p.fotos || [];
   async function elegir(e: React.ChangeEvent<HTMLInputElement>) {
     const files = [...(e.target.files || [])].slice(0, 12 - fotos.length);
@@ -510,7 +519,7 @@ function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fot
         <AnimatePresence initial={false}>
           {fotos.map((u) => (
             <motion.div key={u} className="foto" layout initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }} transition={{ duration: 0.3, ease }}>
-              <button className="foto-ver" onClick={() => setGrande(u)} aria-label="Ver en grande"><img src={u} alt="" loading="lazy" /></button>
+              <button className="foto-ver" onClick={() => setGrande(fotos.indexOf(u))} aria-label="Ver en grande"><img src={u} alt="" loading="lazy" /></button>
               {puede && <button className="foto-quitar" onClick={() => quitar(u)} aria-label="Quitar foto"><ICerrar width={14} height={14} /></button>}
             </motion.div>
           ))}
@@ -525,9 +534,12 @@ function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fot
         )}
       </div>
       {createPortal(<AnimatePresence>
-        {grande && (
+        {grande !== null && (
           <motion.div className="foto-grande" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={(e) => { e.stopPropagation(); setGrande(null); }}>
-            <motion.img src={grande} alt="" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 300, damping: 28 }} />
+            <motion.div className="carrusel grande-tira" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              ref={(el: HTMLDivElement | null) => { if (el && !el.dataset.listo) { el.dataset.listo = "1"; el.scrollLeft = grande * el.clientWidth; } }}>
+              {fotos.map((u) => <div key={u} className="grande-item"><img src={u} alt="" draggable={false} /></div>)}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>, document.body)}
