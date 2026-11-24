@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { dominio, duracion, eur, fechaLarga, gramos, hace, num } from "../lib/formato";
 import { acumula, aplicarGratis, calcularCoste, deudaDe, gratisRestante } from "../lib/coste";
@@ -15,22 +15,14 @@ import { BotonGuardar, BotonGusta } from "../pages/Vitrina";
 const ease = [0.22, 1, 0.36, 1] as const;
 
 /** foto de la figura; sin foto, franjas con los colores de filamento como capas impresas */
-export function Portada({ p, alto, layoutId, pasar }: { p: Pedido; alto?: number; layoutId?: string; pasar?: boolean }) {
+export function Portada({ p, alto, layoutId, onVer }: { p: Pedido; alto?: number; layoutId?: string; onVer?: () => void }) {
   const [rota, setRota] = useState(false);
-  const [vista, setVista] = useState(0);
   const colores = p.lineas.map((l) => l.color).filter(Boolean);
   const franjas = colores.length ? colores : ["var(--line)"];
-  const fotos = p.fotos || [];
+  const ver = onVer && !!p.fotos?.length && !rota ? onVer : undefined;
   return (
-    <motion.div layoutId={layoutId} className={`portada${pasar && fotos.length && !rota ? " con-fotos" : ""}`} style={alto ? { height: alto } : undefined} transition={{ duration: 0.45, ease }}>
-      {pasar && fotos.length > 1 ? (
-        <>
-          <div className="carrusel" onScroll={(e) => { const el = e.currentTarget; setVista(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}>
-            {fotos.map((u) => <img key={u} src={u} alt="" loading="lazy" draggable={false} />)}
-          </div>
-          <div className="puntos" aria-hidden="true">{fotos.map((u, i) => <i key={u} className={i === vista ? "on" : ""} />)}</div>
-        </>
-      ) : (p.fotos?.[0] || p.imagen) && !rota ? (
+    <motion.div layoutId={layoutId} className={`portada${ver ? " se-ve" : ""}`} style={alto ? { height: alto } : undefined} transition={{ duration: 0.45, ease }} onClick={ver}>
+      {(p.fotos?.[0] || p.imagen) && !rota ? (
         <img src={p.fotos?.[0] || p.imagen} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setRota(true)} />
       ) : (
         <div className="capas-portada" aria-hidden="true">
@@ -108,6 +100,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
   const [ocupado, setOcupado] = useState(false);
   const [borrar, setBorrar] = useState(false);
   const [editar, setEditar] = useState(false);
+  const [visor, setVisor] = useState<number | null>(null);
   const det = p.coste_detalle;
 
   useEffect(() => {
@@ -141,6 +134,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
 
   return (
     <motion.div className="capa" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCerrar}>
+      {createPortal(<AnimatePresence>{visor !== null && <Visor fotos={p.fotos || []} inicio={visor} onCerrar={() => setVisor(null)} />}</AnimatePresence>, document.body)}
       <motion.div
         className="hoja"
         role="dialog"
@@ -154,7 +148,7 @@ export function DetallePedido({ p, onCerrar }: { p: Pedido; onCerrar: () => void
           <ICerrar />
         </button>
         <div className="hoja-scroll">
-          <Portada p={p} layoutId={`img-${p.id}`} pasar />
+          <Portada p={p} layoutId={`img-${p.id}`} onVer={() => setVisor(0)} />
           <motion.div className="hoja-cuerpo" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.4, ease }}>
             <div className="hoja-cabecera">
               <div style={{ minWidth: 0 }}>
@@ -479,6 +473,53 @@ export async function reducir(f: File): Promise<Blob> {
   return await new Promise<Blob>((ok, mal) => c.toBlob((b) => (b ? ok(b) : mal(new Error("No se ha podido leer la foto"))), "image/jpeg", 0.85));
 }
 
+/** fotos en grande: se pasan con las flechas, el teclado o el dedo */
+function Visor({ fotos, inicio, onCerrar }: { fotos: string[]; inicio: number; onCerrar: () => void }) {
+  const [i, setI] = useState(inicio);
+  const tira = useRef<HTMLDivElement>(null);
+  const ir = (n: number) => {
+    const el = tira.current;
+    if (el) el.scrollTo({ left: Math.max(0, Math.min(fotos.length - 1, n)) * el.clientWidth, behavior: "smooth" });
+  };
+  useEffect(() => {
+    const el = tira.current;
+    if (el) el.scrollLeft = inicio * el.clientWidth;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") ir(i + 1);
+      else if (e.key === "ArrowLeft") ir(i - 1);
+      else if (e.key !== "Escape") return;
+      else onCerrar();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
+    window.addEventListener("keydown", k, true);
+    return () => window.removeEventListener("keydown", k, true);
+  });
+  const flecha = (d: number) => (
+    <button className={`visor-flecha ${d < 0 ? "izq" : "der"}`} disabled={i + d < 0 || i + d >= fotos.length} aria-label={d < 0 ? "Anterior" : "Siguiente"} onClick={(e) => { e.stopPropagation(); ir(i + d); }}>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d={d < 0 ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"} /></svg>
+    </button>
+  );
+  return (
+    <motion.div className="foto-grande" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={(e) => { e.stopPropagation(); onCerrar(); }}>
+      <motion.div ref={tira} className="carrusel grande-tira" initial={{ scale: 0.92 }} animate={{ scale: 1 }} exit={{ scale: 0.92 }} transition={{ type: "spring", stiffness: 300, damping: 28 }}
+        onScroll={(e) => { const el = e.currentTarget; setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}>
+        {fotos.map((u) => <div key={u} className="grande-item"><img src={u} alt="" draggable={false} onClick={(e) => e.stopPropagation()} /></div>)}
+      </motion.div>
+      <button className="visor-cerrar" aria-label="Cerrar" onClick={(e) => { e.stopPropagation(); onCerrar(); }}><ICerrar /></button>
+      {fotos.length > 1 && (
+        <>
+          {flecha(-1)}
+          {flecha(1)}
+          <span className="visor-num num">{i + 1} / {fotos.length}</span>
+        </>
+      )}
+    </motion.div>
+  );
+}
+
 function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fotos: string[]) => Promise<void> }) {
   const { api, aviso } = useDatos();
   const [subiendo, setSubiendo] = useState(0);
@@ -533,16 +574,7 @@ function Fotos({ p, puede, guardar }: { p: Pedido; puede: boolean; guardar: (fot
           </label>
         )}
       </div>
-      {createPortal(<AnimatePresence>
-        {grande !== null && (
-          <motion.div className="foto-grande" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={(e) => { e.stopPropagation(); setGrande(null); }}>
-            <motion.div className="carrusel grande-tira" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 300, damping: 28 }}
-              ref={(el: HTMLDivElement | null) => { if (el && !el.dataset.listo) { el.dataset.listo = "1"; el.scrollLeft = grande * el.clientWidth; } }}>
-              {fotos.map((u) => <div key={u} className="grande-item"><img src={u} alt="" draggable={false} /></div>)}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>, document.body)}
+      {createPortal(<AnimatePresence>{grande !== null && <Visor fotos={fotos} inicio={grande} onCerrar={() => setGrande(null)} />}</AnimatePresence>, document.body)}
     </div>
   );
 }

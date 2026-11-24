@@ -1074,19 +1074,24 @@ select.v-chip { padding-right: 32px; background-image: url("data:image/svg+xml,%
 .grupo-sel.g-nada { --g-color: var(--st-imprimiendo); }
 .cuenta-grupo span.grupo-sel.g-taller { --g-color: var(--hot); padding: 3px 10px; }
 
-/* varias fotos: se pasan con el dedo */
-.carrusel { display: flex; width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+/* fotos en grande: se pasan con flechas o con el dedo */
+.carrusel { display: flex; width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
 .carrusel::-webkit-scrollbar { display: none; }
-.carrusel > img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: center; scroll-snap-stop: always; }
-.vitrina-foto .portada .carrusel { aspect-ratio: 4 / 5; max-height: 520px; }
-.vitrina-foto .portada .carrusel > img { height: 100%; max-height: none; aspect-ratio: auto; }
-.vitrina.v-lista .vitrina-foto .portada .carrusel { aspect-ratio: auto; height: 100%; }
-.puntos { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 5px; pointer-events: none; }
-.puntos i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.55); box-shadow: 0 0 3px rgba(0, 0, 0, 0.45); transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s; }
-.puntos i.on { width: 16px; background: #fff; }
+.foto-grande { padding: 0; }
 .foto-grande .grande-tira { width: 100%; height: 100%; justify-self: stretch; align-self: stretch; }
-.grande-item { flex: 0 0 100%; display: grid; place-items: center; scroll-snap-align: center; scroll-snap-stop: always; padding: 0 4px; }
-.grande-item img { max-width: 100%; max-height: 100%; border-radius: 16px; object-fit: contain; }
-/* en la ficha, las fotos reales enteras (sin recortar) */
-.hoja > .hoja-scroll > .portada.con-fotos { height: min(62vh, 560px); background: #0b0b0c; }
-.hoja > .hoja-scroll > .portada.con-fotos img { object-fit: contain; }
+.grande-item { flex: 0 0 100%; display: grid; place-items: center; scroll-snap-align: center; scroll-snap-stop: always; padding: max(56px, env(safe-area-inset-top, 0px)) 16px max(56px, env(safe-area-inset-bottom, 0px)); }
+.grande-item img { max-width: calc(100vw - 32px); max-height: calc(100vh - 112px); max-height: calc(100dvh - 112px); border-radius: 16px; object-fit: contain; cursor: default; }
+.visor-flecha, .visor-cerrar { position: absolute; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; border: 0; color: #fff; background: rgba(255, 255, 255, 0.14); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; transition: background 0.2s, opacity 0.2s, transform 0.2s; }
+.visor-flecha:hover:not(:disabled), .visor-cerrar:hover { background: rgba(255, 255, 255, 0.26); }
+.visor-flecha:active:not(:disabled) { transform: translateY(-50%) scale(0.92); }
+.visor-flecha { top: 50%; transform: translateY(-50%); }
+.visor-flecha.izq { left: 16px; }
+.visor-flecha.der { right: 16px; }
+.visor-flecha:disabled { opacity: 0; pointer-events: none; }
+.visor-cerrar { top: max(14px, env(safe-area-inset-top, 0px)); right: 16px; }
+.visor-num { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); color: #fff; font-size: 14px; font-weight: 700; padding: 5px 12px; border-radius: 99px; background: rgba(255, 255, 255, 0.14); }
+.portada.se-ve { cursor: zoom-in; }
+/* la ficha sin barra de desplazamiento */
+.hoja-scroll { scrollbar-width: none; }
+.hoja-scroll::-webkit-scrollbar { display: none; }
+.foto-grande { z-index: 300; background: rgba(0, 0, 0, 0.94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
