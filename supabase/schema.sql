@@ -465,9 +465,9 @@ insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true) o
 drop policy if exists "fotos taller sube" on storage.objects;
 drop policy if exists "fotos taller borra" on storage.objects;
 create policy "fotos taller sube" on storage.objects for insert to authenticated
-  with check (bucket_id = 'fotos' and exists (select 1 from public.admins where user_id = auth.uid()));
+  with check (bucket_id = 'fotos' and public.soy_admin());
 create policy "fotos taller borra" on storage.objects for delete to authenticated
-  using (bucket_id = 'fotos' and exists (select 1 from public.admins where user_id = auth.uid()));
+  using (bucket_id = 'fotos' and public.soy_admin());
 
 -- ---------- quién entra (solo lo ve el taller) ----------
 create table if not exists public.accesos (
