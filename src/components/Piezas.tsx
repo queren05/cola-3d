@@ -121,13 +121,11 @@ export function Impresora({ size = 56 }: { size?: number }) {
             key={i}
             x="18"
             y={38 - i * 3.2}
-            width="20"
             height="2.6"
             rx="1"
             fill="var(--hot)"
-            style={{ transformBox: "fill-box", transformOrigin: i % 2 ? "right center" : "left center" }}
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: [0, 0, 1, 1, 1], opacity: [0, 1, 1, 1, 0] }}
+            initial={{ x: i % 2 ? 20 : 0, width: 0, opacity: 0 }}
+            animate={{ x: i % 2 ? [20, 20, 0, 0, 0] : 0, width: [0, 0, 20, 20, 20], opacity: [0, 1, 1, 1, 0] }}
             transition={{ duration: CICLO, times: [0, inicio(i), inicio(i) + PASADA, 0.86, 0.97], ease: "linear", repeat: Infinity }}
           />
         ))}
